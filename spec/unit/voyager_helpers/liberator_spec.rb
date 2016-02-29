@@ -134,13 +134,7 @@ describe VoyagerHelpers::Liberator do
       expect(availability[:id]).to eq item_id
       expect(availability[:barcode]).to eq item_barcode
     end
-    it 'limited availability in limited-access location' do
-      allow(described_class).to receive(:get_items_for_holding).and_return(limited_multivolume)
-      allow(described_class).to receive(:limited_access_location?).and_return(true)
-      availability = described_class.get_full_mfhd_availability(placeholder_id).first
-      expect(availability[:status]).to eq "Limited"
-    end
-    it 'includes Voyager status by default in full-access location' do
+    it 'includes Voyager status' do
       allow(described_class).to receive(:get_items_for_holding).and_return(single_volume_2_copy)
       availability = described_class.get_full_mfhd_availability(placeholder_id).first
       expect(availability[:status]).to eq not_charged
@@ -169,11 +163,6 @@ describe VoyagerHelpers::Liberator do
       allow(described_class).to receive(:get_items_for_holding).and_return(reserve_item)
       availability = described_class.get_full_mfhd_availability(placeholder_id).first
       expect(availability[:copy_number]).to eq 1
-    end
-    it 'excludes copy number for single copy non reserve item' do
-      allow(described_class).to receive(:get_items_for_holding).and_return(limited_multivolume)
-      availability = described_class.get_full_mfhd_availability(placeholder_id).first
-      expect(availability[:copy_number]).to eq nil
     end
     it 'includes temp_location code for on reserve item' do
       allow(described_class).to receive(:get_items_for_holding).and_return(reserve_item)

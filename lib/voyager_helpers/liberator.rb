@@ -197,19 +197,13 @@ module VoyagerHelpers
                   order_status
                 elsif field_852[/^elf/]
                   'Online'
-                elsif !circulating_location?(field_852)
-                  'Limited'
                 else
                   'On Shelf'
                 end
               else
                 item = get_info_for_item(holding_item_ids.first, c, false)
                 availability[bib_id][mfhd_id][:on_reserve] = item[:temp_location] || item[:perm_location] if item[:on_reserve] == 'Y'
-                if !circulating_location?(field_852)
-                  'Limited'
-                else
-                  item[:status]
-                end
+                item[:status]
               end
             end
           end
@@ -227,14 +221,10 @@ module VoyagerHelpers
           item_hash = {}
           item_hash[:barcode] = item[:barcode]
           item_hash[:id] = item[:id]
-          if item[:on_reserve] == 'Y'
-            item_hash[:on_reserve] = item[:temp_location] || item[:perm_location]
-            item_hash[:copy_number] = item[:copy_number]
-            item_hash[:status] = item[:status]
-          else
-            item_hash[:status] = !circulating_location?(item[:perm_location]) ? 'Limited' : item[:status]
-            item_hash[:copy_number] = item[:copy_number] if item[:copy_number] != 1
-          end
+          item_hash[:location] = item[:perm_location]
+          item_hash[:on_reserve] = item[:temp_location] || item_hash[:location] if item[:on_reserve] == 'Y'
+          item_hash[:copy_number] = item[:copy_number]
+          item_hash[:status] = item[:status]
           unless item[:enum].nil?
             enum = item[:enum]
             enum << " (#{item[:chron]})" unless item[:chron].nil?
@@ -320,16 +310,6 @@ module VoyagerHelpers
           end
         end
         hsh
-      end
-
-      # check if holding location is a circulating location, default true
-      def circulating_location?(loc_code)
-        circulates = true
-        holding_location = Locations::HoldingLocation.find_by(code: loc_code)
-        unless holding_location.nil?
-          circulates = holding_location.circulates
-        end
-        circulates
       end
 
       # Note that the hash is the result of calling `to_hash`, not `to_marchash`
