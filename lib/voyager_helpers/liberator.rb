@@ -164,7 +164,7 @@ module VoyagerHelpers
       # @param bibs [Array<Fixnum>] Bib ids
       # @param full [Boolean] true return full availability for single bib, false (default) first 2 holdings
       # @return [Hash] :bib_id_value => [Hash] bib availability
-      # 
+      #
       #
       # Bib availability hash:
       # For the bib's holding records:
@@ -326,7 +326,7 @@ module VoyagerHelpers
       def circulating_location?(loc_code)
         circulates = true
         holding_location = Locations::HoldingLocation.find_by(code: loc_code)
-        unless holding_location.nil? 
+        unless holding_location.nil?
           circulates = holding_location.circulates
         end
         circulates

@@ -55,14 +55,3 @@ describe VoyagerHelpers::SyncFu do
   end
 
 end
-
-
-
-
-
-
-
-
-
-
-

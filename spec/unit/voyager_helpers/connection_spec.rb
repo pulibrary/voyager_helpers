@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'spec_helper'
 
 describe OCI8 do
 
@@ -13,7 +13,7 @@ describe OCI8 do
                     }
 
   describe 'liberator functions only make one oracle connection' do
-    
+
     it '#get_availability' do
       allow(subject).to receive(:new).and_return(conn)
       expect(subject).to receive(:new).once
