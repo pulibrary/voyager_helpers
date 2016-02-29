@@ -2,6 +2,8 @@
 
 A set of methods for retrieving data from Voyager.
 
+[![Circle CI](https://circleci.com/gh/pulibrary/voyager_helpers.svg?style=svg)](https://circleci.com/gh/pulibrary/voyager_helpers)
+
 ## Installation
 
 On __Ubuntu__ systems, do [this](https://help.ubuntu.com/community/Oracle%20Instant%20Client). __All of it.__
@@ -10,7 +12,7 @@ Add configuration for VGER In `$ORACLE_HOME/network/admin/tnsnames.ora` (ask DBA
 
 In `/etc/profile.d/oracle.sh` Append:
 
-```
+```bash
 export ORACLE_LIB=$ORACLE_HOME/lib
 export TNS_ADMIN=$ORACLE_HOME/network/admin
 ```
@@ -24,7 +26,14 @@ install the 11.2 client, which works fine with 10.2 Oracle servers.
 
 ## Configuration
 
-The gem needs to know the database username, password and database name. Put 
+Add the `voyager_helpers` and `ruby-oci8` gems to your application's Gemfile
+
+```ruby
+gem 'ruby-oci8'
+gem 'voyager_helpers'
+```
+
+The gem needs to know the database username, password and database name. Put
 this somewhere:
 
 ```ruby

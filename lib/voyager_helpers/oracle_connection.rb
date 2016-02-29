@@ -8,6 +8,8 @@ module VoyagerHelpers
         VoyagerHelpers.config.db_name
       )
       yield conn
+    rescue NameError
+      return if ENV['CI']
     ensure
       conn.logoff unless conn.nil?
     end

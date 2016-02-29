@@ -22,4 +22,3 @@ module VoyagerHelpers
 
   end # class << self
 end # module VoyagerHelpers
-
