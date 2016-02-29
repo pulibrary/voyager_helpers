@@ -1,6 +1,10 @@
 require 'spec_helper'
 
-describe OCI8, :skip_ci do
+# These specs are left over from when this gem was included with MARC
+# liberation. They are now skipped by `rake ci` and `rake spec`, and can't be
+# run unless the database is configured as described in the README file.
+
+describe 'OCI8', :skip_ci do
 
   let(:holding_id)  { 2281830 }
   let(:item_id)     { 23672 }

@@ -1,7 +1,7 @@
-require 'oci8'
 require 'marc'
 require_relative 'queries'
 require_relative 'oracle_connection'
+require 'oci8' unless ENV['CI']
 
 module VoyagerHelpers
   class Liberator
