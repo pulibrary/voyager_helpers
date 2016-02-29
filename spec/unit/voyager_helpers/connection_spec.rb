@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe OCI8 do
+describe OCI8, :skip_ci do
 
   let(:holding_id)  { 2281830 }
   let(:item_id)     { 23672 }
