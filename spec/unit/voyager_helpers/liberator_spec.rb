@@ -114,11 +114,11 @@ describe VoyagerHelpers::Liberator do
                                 barcode: item_barcode
     }] }
     let(:perm) { 'sciterm' }
-    let(:reserve_no_temp) { [{
+    let(:temp_no_reserve) { [{
                                 id: item_id,
                                 status: not_charged,
-                                on_reserve: 'Y',
-                                temp_location: nil,
+                                on_reserve: 'N',
+                                temp_location: temp,
                                 perm_location: perm,
                                 enum: nil,
                                 chron: nil,
@@ -169,10 +169,10 @@ describe VoyagerHelpers::Liberator do
       availability = described_class.get_full_mfhd_availability(placeholder_id).first
       expect(availability[:on_reserve]).to eq temp
     end
-    it 'if no temp_location on reserve item location code falls back to perm_location' do
-      allow(described_class).to receive(:get_items_for_holding).and_return(reserve_no_temp)
+    it 'temp_location returned if present, including for non-reserve items' do
+      allow(described_class).to receive(:get_items_for_holding).and_return(temp_no_reserve)
       availability = described_class.get_full_mfhd_availability(placeholder_id).first
-      expect(availability[:on_reserve]).to eq perm
+      expect(availability[:on_reserve]).to eq temp
     end
   end
 end
