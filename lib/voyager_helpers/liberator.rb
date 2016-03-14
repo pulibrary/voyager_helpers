@@ -202,7 +202,8 @@ module VoyagerHelpers
                 end
               else
                 item = get_info_for_item(holding_item_ids.first, c, false)
-                availability[bib_id][mfhd_id][:on_reserve] = item[:temp_location] || item[:perm_location] if item[:on_reserve] == 'Y'
+                availability[bib_id][mfhd_id][:on_reserve] = item[:temp_location] unless item[:temp_location].nil?
+                availability[bib_id][mfhd_id][:copy_number] = item[:copy_number]
                 item[:status]
               end
             end
@@ -222,7 +223,7 @@ module VoyagerHelpers
           item_hash[:barcode] = item[:barcode]
           item_hash[:id] = item[:id]
           item_hash[:location] = item[:perm_location]
-          item_hash[:on_reserve] = item[:temp_location] || item_hash[:location] if item[:on_reserve] == 'Y'
+          item_hash[:on_reserve] = item[:temp_location] unless item[:temp_location].nil?
           item_hash[:copy_number] = item[:copy_number]
           item_hash[:status] = item[:status]
           unless item[:enum].nil?
@@ -421,12 +422,12 @@ module VoyagerHelpers
           info[:id] = a.shift
           info[:status] = a.shift
           info[:on_reserve] = a.shift
+          info[:copy_number] = a.shift
           info[:temp_location] = a.shift
           if full == true
             info[:perm_location] = a.shift
             info[:enum] = a.shift
             info[:chron] = a.shift
-            info[:copy_number] = a.shift
             info[:item_sequence_number] = a.shift
             date = a.shift
             info[:status_date] = date.to_datetime unless date.nil?

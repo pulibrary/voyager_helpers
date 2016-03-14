@@ -24,11 +24,11 @@ module VoyagerHelpers
           item.item_id,
           item_status_type.item_status_desc,
           item.on_reserve,
+          item.copy_number,
           temp_loc.location_code,
           perm_loc.location_code,
           mfhd_item.item_enum,
           mfhd_item.chron,
-          item.copy_number,
           item.item_sequence_number,
           item_status.item_status_date,
           item_barcode.item_barcode
@@ -56,6 +56,7 @@ module VoyagerHelpers
           item.item_id,
           item_status_type.item_status_desc,
           item.on_reserve,
+          item.copy_number,
           temp_loc.location_code
         FROM item
           LEFT JOIN location temp_loc
