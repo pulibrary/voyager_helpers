@@ -204,6 +204,7 @@ module VoyagerHelpers
                 item = get_info_for_item(holding_item_ids.first, c, false)
                 availability[bib_id][mfhd_id][:on_reserve] = item[:temp_location] unless item[:temp_location].nil?
                 availability[bib_id][mfhd_id][:copy_number] = item[:copy_number]
+                availability[bib_id][mfhd_id][:item_id] = item[:id]
                 item[:status]
               end
             end
