@@ -2,6 +2,44 @@ module VoyagerHelpers
   module Queries
     class << self
 
+      def recap_locations
+        %w(
+          378
+          419
+          420
+          421
+          422
+          423
+          424
+          425
+          426
+          427
+          428
+          429
+          436
+          438
+          446
+          448
+          454
+          459
+          461
+          462
+          464
+          465
+          466
+          491
+          493
+          494
+          495
+          496
+          497
+          498
+          503
+          504
+          515
+        ).join(', ')
+      end
+      
       def bib_suppressed(bib_id)
         %Q(
         SELECT suppress_in_opac FROM bib_master
@@ -190,7 +228,6 @@ module VoyagerHelpers
       end
 
       def all_recap_bib_ids
-        recap_locations = '378, 419, 420, 421, 422, 423, 424, 425, 426, 427, 428, 429, 436, 438, 446, 448, 454, 459, 461, 462, 464, 465, 466, 491, 493, 494, 495, 496, 497, 498, 503, 504, 515'
         %Q(
           SELECT bib_master.bib_id
           FROM (
@@ -211,7 +248,7 @@ module VoyagerHelpers
         SELECT bib_mfhd.mfhd_id
         FROM bib_mfhd JOIN mfhd_master ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id
         WHERE (bib_id = #{bib_id}
-        and location_id IN (378, 419, 420, 421, 422, 423, 424, 425, 426, 427, 428, 429, 436, 438, 446, 448, 454, 459, 461, 462, 464, 465, 466, 491, 493, 494, 495, 496, 497, 498, 503, 504, 515)
+        and location_id IN (#{recap_locations})
         and suppress_in_opac = 'N')
         )
       end
