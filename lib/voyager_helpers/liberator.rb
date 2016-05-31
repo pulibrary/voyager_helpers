@@ -37,6 +37,81 @@ module VoyagerHelpers
         end
       end
 
+      def get_bib_with_recap_holdings(bib_id, conn=nil)
+        if conn.nil?
+          connection do |c|
+            bib = get_bib_without_holdings(bib_id, c)
+            unless bib.nil?
+              holdings = get_recap_holding_records(bib_id, c)
+              [bib,holdings].flatten!
+            end
+          end
+        else
+          bib = get_bib_without_holdings(bib_id, conn)
+          unless bib.nil?
+            holdings = get_recap_holding_records(bib_id, conn)
+            [bib,holdings].flatten!
+          end
+        end
+      end
+
+      def get_recap_bibids(conn=nil, file_name)
+        query = VoyagerHelpers::Queries.all_recap_bib_ids
+        File.open(file_name, 'a') do |output|
+          if conn.nil?
+            connection do |c|
+              c.exec(query) do |r|
+                output.puts(r.join(''))
+              end
+            end
+          else
+            conn.exec(query) do |r|
+              output.puts(r.join(''))
+            end
+          end
+        end
+      end
+
+      def get_recap_holding_records(bib_id, conn=nil)
+        records = []
+        if conn.nil?
+          connection do |c|
+            get_recap_bib_mfhd_ids(bib_id, c).each do |mfhd_id|
+              record = get_holding_record(mfhd_id, c)
+              records << record unless record.nil?
+            end
+          end
+        else
+          get_recap_bib_mfhd_ids(bib_id, conn).each do |mfhd_id|
+            record = get_holding_record(mfhd_id, conn)
+            records << record unless record.nil?
+          end
+        end
+        records
+      end
+
+      def get_bib_update_date(bib_id, conn=nil)
+        query = VoyagerHelpers::Queries.bib_update_date(bib_id)
+        if conn.nil?
+          connection do |c|
+            c.exec(query) { |date| return date.first }
+          end
+        else
+          conn.exec(query) { |date| return date.first }
+        end
+      end
+
+      def get_mfhd_update_date(mfhd_id, conn=nil)
+        query = VoyagerHelpers::Queries.mfhd_update_date(mfhd_id)
+        if conn.nil?
+          connection do |c|
+            c.exec(query) { |date| return date.first }
+          end
+        else
+          conn.exec(query) { |date| return date.first }
+        end
+      end
+
       # @param mfhd_id [Fixnum] A holding record id
       # @return [MARC::Record]
       def get_holding_record(mfhd_id, conn=nil)
@@ -405,7 +480,6 @@ module VoyagerHelpers
         suppressed
       end
 
-
       def get_info_for_item(item_id, conn=nil, full=true)
         query = full == true ? VoyagerHelpers::Queries.full_item_info(item_id) : VoyagerHelpers::Queries.brief_item_info(item_id)
         if conn.nil?
@@ -604,6 +678,16 @@ module VoyagerHelpers
           conn.exec(query) { |s| segments << s }
         end
         segments
+      end
+
+      def get_recap_bib_mfhd_ids(bib_id, conn=nil)
+        if conn.nil?
+          connection do |c|
+            exec_get_bib_mfhd_ids(VoyagerHelpers::Queries.recap_mfhd_ids(bib_id), c)
+          end
+        else
+          exec_get_bib_mfhd_ids(VoyagerHelpers::Queries.recap_mfhd_ids(bib_id), conn)
+        end
       end
 
       def get_bib_mfhd_ids(bib_id, conn=nil)

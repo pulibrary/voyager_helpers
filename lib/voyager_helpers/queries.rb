@@ -2,6 +2,44 @@ module VoyagerHelpers
   module Queries
     class << self
 
+      def recap_locations
+        %w(
+          378
+          419
+          420
+          421
+          422
+          423
+          424
+          425
+          426
+          427
+          428
+          429
+          436
+          438
+          446
+          448
+          454
+          459
+          461
+          462
+          464
+          465
+          466
+          491
+          493
+          494
+          495
+          496
+          497
+          498
+          503
+          504
+          515
+        ).join(', ')
+      end
+      
       def bib_suppressed(bib_id)
         %Q(
         SELECT suppress_in_opac FROM bib_master
@@ -20,7 +58,7 @@ module VoyagerHelpers
 
       def full_item_info(item_id)
         %Q(
-        SELECT 
+        SELECT
           item.item_id,
           item_status_type.item_status_desc,
           item.on_reserve,
@@ -33,9 +71,9 @@ module VoyagerHelpers
           item_status.item_status_date,
           item_barcode.item_barcode
         FROM item
-          INNER JOIN location perm_loc 
+          INNER JOIN location perm_loc
             ON perm_loc.location_id = item.perm_location
-          LEFT JOIN location temp_loc 
+          LEFT JOIN location temp_loc
             ON temp_loc.location_id = item.temp_location
           INNER JOIN item_status
             ON item_status.item_id = item.item_id
@@ -101,7 +139,7 @@ module VoyagerHelpers
 
       def bib(bib_id)
         %Q(
-        SELECT record_segment 
+        SELECT record_segment
         FROM bib_data
         WHERE bib_id=#{bib_id}
         ORDER BY seqnum
@@ -110,7 +148,7 @@ module VoyagerHelpers
 
       def bib_id_for_holding_id(mfhd_id)
         %Q(
-        SELECT 
+        SELECT
           bib_master.bib_id,
           bib_master.create_date,
           bib_master.update_date
@@ -123,7 +161,7 @@ module VoyagerHelpers
 
       def all_unsupressed_bib_ids
         %Q(
-        SELECT 
+        SELECT
           bib_id,
           create_date,
           update_date
@@ -141,14 +179,32 @@ module VoyagerHelpers
         )
       end
 
+      def bib_update_date(bib_id)
+        %Q(
+        SELECT
+          update_date
+        FROM bib_master
+        WHERE bib_master.bib_id=#{bib_id}
+        )
+      end
+
+      def mfhd_update_date(mfhd_id)
+        %Q(
+        SELECT
+          update_date
+        FROM mfhd_master
+        WHERE mfhd_master.mfhd_id=#{mfhd_id}
+        )
+      end
+
       def all_unsupressed_mfhd_ids
         %Q(
-        SELECT 
+        SELECT
           mfhd_master.mfhd_id,
           mfhd_master.create_date,
           mfhd_master.update_date
-        FROM mfhd_master 
-          INNER JOIN location 
+        FROM mfhd_master
+          INNER JOIN location
             ON mfhd_master.location_id = location.location_id
         WHERE mfhd_master.suppress_in_opac='N'
           AND location.suppress_in_opac='N'
@@ -165,15 +221,41 @@ module VoyagerHelpers
 
       def mfhd_suppressed(mfhd_id)
         %Q(
-          SELECT suppress_in_opac 
+          SELECT suppress_in_opac
           FROM mfhd_master
           WHERE mfhd_id=#{mfhd_id}
-        ) 
+        )
+      end
+
+      def all_recap_bib_ids
+        %Q(
+          SELECT bib_master.bib_id
+          FROM (
+                 (
+                   (bib_master JOIN bib_mfhd ON bib_master.bib_id = bib_mfhd.bib_id) 
+                 JOIN mfhd_master ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id) 
+               JOIN mfhd_item ON mfhd_master.mfhd_id = mfhd_item.mfhd_id) 
+          WHERE mfhd_master.location_id IN (#{recap_locations})
+          AND bib_master.suppress_in_opac = 'N'
+          AND mfhd_master.suppress_in_opac = 'N'
+          GROUP BY bib_master.bib_id
+          ORDER BY bib_master.bib_id
+        )
+      end
+
+      def recap_mfhd_ids(bib_id)
+        %Q(
+        SELECT bib_mfhd.mfhd_id
+        FROM bib_mfhd JOIN mfhd_master ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id
+        WHERE (bib_id = #{bib_id}
+        and location_id IN (#{recap_locations})
+        and suppress_in_opac = 'N')
+        )
       end
 
       def mfhd_ids(bib_id)
         %Q(
-        SELECT mfhd_id 
+        SELECT mfhd_id
         FROM bib_mfhd
         WHERE bib_id=#{bib_id}
         )
@@ -267,11 +349,3 @@ module VoyagerHelpers
     end # class << self
   end # module Queries
 end # module VoyagerHelpers
-
-
-
-
-
-
-
-
