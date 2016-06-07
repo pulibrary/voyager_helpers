@@ -191,4 +191,10 @@ describe VoyagerHelpers::Liberator do
     end
   end
 
+  describe '#valid_codepoints' do
+    it 'Converts valid UTF-8 codepoints stored in an ASCII field to UTF-8 string' do
+      expect(described_class.send(:valid_codepoints, 'Schröder')).to eq 'Schröder'
+    end
+  end
+
 end
