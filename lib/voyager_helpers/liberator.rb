@@ -511,8 +511,10 @@ module VoyagerHelpers
           info[:temp_location] = a.shift
           if full == true
             info[:perm_location] = a.shift
-            info[:enum] = a.shift
-            info[:chron] = a.shift
+            enum = a.shift
+            info[:enum] = valid_ascii(enum)
+            chron = a.shift
+            info[:chron] = valid_ascii(chron)
             info[:item_sequence_number] = a.shift
             date = a.shift
             info[:status_date] = date.to_datetime unless date.nil?
@@ -520,6 +522,10 @@ module VoyagerHelpers
           end
         end
         info
+      end
+
+      def valid_ascii(string)
+        string.force_encoding("ascii").encode("UTF-8", {:invalid => :replace, :replace => ''}) unless string.nil?
       end
 
       def exec_get_info_for_patron(query, conn)
