@@ -501,8 +501,8 @@ module VoyagerHelpers
           info[:temp_location] = a.shift
           if full == true
             info[:perm_location] = a.shift
-            info[:enum] = a.shift
-            info[:chron] = a.shift
+            info[:enum] = a.shift.force_encoding("ascii").encode("UTF-8", {:invalid => :replace, :replace => ''})
+            info[:chron] = a.shift.force_encoding("ascii").encode("UTF-8", {:invalid => :replace, :replace => ''})
             info[:item_sequence_number] = a.shift
             date = a.shift
             info[:status_date] = date.to_datetime unless date.nil?
