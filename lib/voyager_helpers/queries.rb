@@ -227,29 +227,6 @@ module VoyagerHelpers
         )
       end
 
-      def record_ids_for_barcode(item_barcode)
-        %Q(
-          SELECT 
-            item_barcode.item_id,
-            mfhd_master.mfhd_id,
-            bib_master.bib_id
-          FROM item_barcode 
-            JOIN bib_item 
-              ON item_barcode.item_id = bib_item.item_id
-            JOIN bib_master
-              ON bib_item.bib_id = bib_master.bib_id
-            JOIN bib_mfhd
-              ON bib_master.bib_id = bib_mfhd.bib_id
-            JOIN mfhd_master
-              ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id
-          WHERE
-            bib_master.suppress_in_opac = 'N' AND
-            mfhd_master.suppress_in_opac = 'N' AND
-            item_barcode.barcode_status = '1' AND
-            item_barcode.item_barcode = #{item_barcode}
-        )
-      end
-
       def all_recap_bib_ids
         %Q(
           SELECT bib_master.bib_id
