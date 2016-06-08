@@ -175,4 +175,11 @@ describe VoyagerHelpers::Liberator do
       expect(availability[:on_reserve]).to eq temp
     end
   end
+
+  describe '#valid_ascii' do
+    it 'strips out non-ASCII characters and converts to UTF-8' do
+      expect(described_class.send(:valid_ascii, 'a¯')).to eq 'a'
+    end
+  end
+
 end
