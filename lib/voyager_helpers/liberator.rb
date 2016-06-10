@@ -346,6 +346,16 @@ module VoyagerHelpers
         end
       end
 
+      # @param patron_id [String] Either a netID, PUID, or PU Barcode
+      # @return [Array<Hash>] Patron Statistical Categories with one key: :stat_code.
+      def get_patron_stat_codes(patron_id)
+        id_type = determine_id_type(patron_id)
+        query = VoyagerHelpers::Queries.patron_stat_codes(patron_id, id_type)
+        connection do |c|
+          exec_get_patron_stat_codes(query, c)
+        end
+      end
+
       # @param bib_id [Fixnum] Find order status for provided bib ID
       # @return [String] on-order status message and date of status if the status code in whitelist
       # if code is not whitelisted return nil
@@ -529,6 +539,14 @@ module VoyagerHelpers
           info[:patron_id] = a.shift
         end
         info
+      end
+
+      def exec_get_patron_stat_codes(query, conn)
+        stat_codes = []
+        conn.exec(query) do |stat_code|
+          stat_codes << { stat_code: stat_code }
+        end
+        stat_codes
       end
 
       def accumulate_items_for_holding(mfhd_id, conn)

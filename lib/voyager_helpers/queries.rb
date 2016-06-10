@@ -290,6 +290,23 @@ module VoyagerHelpers
           )
       end
 
+      def patron_stat_codes(id, id_field)
+        %Q(
+          SELECT
+            patron_stat_code.patron_stat_desc
+          FROM patron_stat_code
+            JOIN patron_stats
+              ON patron_stat_code.patron_stat_id = patron_stats.patron_stat_id
+            JOIN patron
+              ON patron_stats.patron_id = patron.patron_id
+            JOIN patron_barcode
+              ON patron.patron_id = patron_barcode.patron_id
+          WHERE
+            #{id_field}='#{id}'
+            AND patron_barcode.barcode_status = 1
+        )
+      end
+
       def active_courses
         %Q(
           SELECT
