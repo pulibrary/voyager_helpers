@@ -55,6 +55,8 @@ describe VoyagerHelpers::Liberator do
 
   describe '#get_full_mfhd_availability' do
     let(:item_id) { 36736 }
+    let(:item_2_id) { 36737 }
+    let(:item_3_id) { 36738 }
     let(:item_barcode) { '32101005535917' }
     let(:not_charged) { 'Not Charged' }
     let(:single_volume_2_copy) { [{
@@ -72,7 +74,7 @@ describe VoyagerHelpers::Liberator do
     }] }
     let(:enum_info) { 'v.2' }
     let(:limited_multivolume) { [{
-                                id: item_id,
+                                id: item_2_id,
                                 status: not_charged,
                                 on_reserve: 'N',
                                 temp_location: nil,
@@ -80,7 +82,7 @@ describe VoyagerHelpers::Liberator do
                                 enum: enum_info,
                                 chron: nil,
                                 copy_number: 1,
-                                item_sequence_number: 1,
+                                item_sequence_number: 2,
                                 status_date: '2014-05-27T06:00:19.000-05:00',
                                 barcode: item_barcode
     }] }
@@ -101,7 +103,7 @@ describe VoyagerHelpers::Liberator do
     }] }
     let(:temp) { 'scires' }
     let(:reserve_item) { [{
-                                id: item_id,
+                                id: item_3_id,
                                 status: not_charged,
                                 on_reserve: 'Y',
                                 temp_location: temp,
@@ -109,7 +111,7 @@ describe VoyagerHelpers::Liberator do
                                 enum: nil,
                                 chron: nil,
                                 copy_number: 1,
-                                item_sequence_number: 1,
+                                item_sequence_number: nil,
                                 status_date: '2014-05-27T06:00:19.000-05:00',
                                 barcode: item_barcode
     }] }
@@ -127,6 +129,7 @@ describe VoyagerHelpers::Liberator do
                                 status_date: '2014-05-27T06:00:19.000-05:00',
                                 barcode: item_barcode
     }] }
+    let(:three_items) { [enum_with_chron.first, reserve_item.first, limited_multivolume.first] }
 
     it 'includes item id and barcode in response' do
       allow(described_class).to receive(:get_items_for_holding).and_return(single_volume_2_copy)
@@ -173,6 +176,12 @@ describe VoyagerHelpers::Liberator do
       allow(described_class).to receive(:get_items_for_holding).and_return(temp_no_reserve)
       availability = described_class.get_full_mfhd_availability(placeholder_id).first
       expect(availability[:on_reserve]).to eq temp
+    end
+    it 'sorts multiple items by item sequence number in reverse, nil last' do
+      allow(described_class).to receive(:get_items_for_holding).and_return(three_items)
+      availability = described_class.get_full_mfhd_availability(placeholder_id)
+      item_ids = availability.map { |i| i[:id] }
+      expect(item_ids).to eq [item_2_id, item_id, item_3_id]
     end
   end
 
