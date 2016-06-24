@@ -533,8 +533,10 @@ module VoyagerHelpers
         info = {}
         conn.exec(query) do |a|
           info[:netid] = a.shift
-          info[:first_name] = a.shift
-          info[:last_name] = a.shift
+          f_name = a.shift
+          info[:first_name] = valid_ascii(f_name)
+          l_name = a.shift
+          info[:last_name] = valid_ascii(l_name)
           info[:barcode] = a.shift
           info[:barcode_status] = a.shift
           info[:barcode_status_date] = a.shift
