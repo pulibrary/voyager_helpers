@@ -224,7 +224,7 @@ module VoyagerHelpers
               holding_items.each do |item|
                 data[:items] << item
               end
-              data[:items].sort_by! { |i| i[:item_sequence_number] }.reverse!
+              data[:items].sort_by! { |i| i[:item_sequence_number] || 0 }.reverse!
               items << data
             end
           end
@@ -301,6 +301,7 @@ module VoyagerHelpers
           item_hash[:location] = item[:perm_location]
           item_hash[:on_reserve] = item[:temp_location] unless item[:temp_location].nil?
           item_hash[:copy_number] = item[:copy_number]
+          item_hash[:item_sequence_number] = item[:item_sequence_number]
           item_hash[:status] = item[:status]
           unless item[:enum].nil?
             enum = item[:enum]
@@ -309,7 +310,7 @@ module VoyagerHelpers
           end
           item_availability << item_hash
         end
-        item_availability
+        item_availability.sort_by { |i| i[:item_sequence_number] || 0 }.reverse
       end
 
       # @param mfhd_id [Fixnum] get current issues for mfhd
@@ -508,6 +509,7 @@ module VoyagerHelpers
           info[:status] = a.shift
           info[:on_reserve] = a.shift
           info[:copy_number] = a.shift
+          info[:item_sequence_number] = a.shift
           info[:temp_location] = a.shift
           if full == true
             info[:perm_location] = a.shift
@@ -515,7 +517,6 @@ module VoyagerHelpers
             info[:enum] = valid_ascii(enum)
             chron = a.shift
             info[:chron] = valid_ascii(chron)
-            info[:item_sequence_number] = a.shift
             date = a.shift
             info[:status_date] = date.to_datetime unless date.nil?
             info[:barcode] = a.shift
