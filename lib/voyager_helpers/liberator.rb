@@ -529,14 +529,18 @@ module VoyagerHelpers
         string.force_encoding("ascii").encode("UTF-8", {:invalid => :replace, :replace => ''}) unless string.nil?
       end
 
+      def valid_codepoints(string)
+        string.codepoints.map{|c| c.chr(Encoding::UTF_8)}.join
+      end
+
       def exec_get_info_for_patron(query, conn)
         info = {}
         conn.exec(query) do |a|
           info[:netid] = a.shift
           f_name = a.shift
-          info[:first_name] = valid_ascii(f_name)
+          info[:first_name] = valid_codepoints(f_name)
           l_name = a.shift
-          info[:last_name] = valid_ascii(l_name)
+          info[:last_name] = valid_codepoints(l_name)
           info[:barcode] = a.shift
           info[:barcode_status] = a.shift
           info[:barcode_status_date] = a.shift
