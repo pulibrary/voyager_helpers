@@ -712,12 +712,13 @@ module VoyagerHelpers
       end
 
       def get_recap_bib_mfhd_ids(bib_id, conn=nil)
+        query = VoyagerHelpers::Queries.recap_mfhd_ids(bib_id)
         if conn.nil?
           connection do |c|
-            exec_get_bib_mfhd_ids(VoyagerHelpers::Queries.recap_mfhd_ids(bib_id), c)
+            exec_get_bib_mfhd_ids(query, c)
           end
         else
-          exec_get_bib_mfhd_ids(VoyagerHelpers::Queries.recap_mfhd_ids(bib_id), conn)
+          exec_get_bib_mfhd_ids(query, conn)
         end
       end
 
