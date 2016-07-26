@@ -1,6 +1,7 @@
 require 'marc'
 require_relative 'queries'
 require_relative 'oracle_connection'
+require_relative 'course'
 require 'oci8' unless ENV['CI']
 
 module VoyagerHelpers
@@ -324,6 +325,17 @@ module VoyagerHelpers
           end
         end
         issues
+      end
+
+      def active_courses
+        query = VoyagerHelpers::Queries.active_courses
+        courses = []
+        connection do |c|
+          c.exec(query) do |enum|
+            courses << Course.new(*enum)
+          end
+        end
+        courses
       end
 
       def dump_bibs_to_file(ids, file_name, opts={})
