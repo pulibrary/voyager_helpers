@@ -253,15 +253,21 @@ module VoyagerHelpers
 
       def all_recap_bib_ids
         %Q(
-          SELECT bib_master.bib_id
-          FROM (
-                 (
-                   (bib_master JOIN bib_mfhd ON bib_master.bib_id = bib_mfhd.bib_id) 
-                 JOIN mfhd_master ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id) 
-               JOIN mfhd_item ON mfhd_master.mfhd_id = mfhd_item.mfhd_id) 
-          WHERE mfhd_master.location_id IN (#{recap_locations})
-          AND bib_master.suppress_in_opac = 'N'
-          AND mfhd_master.suppress_in_opac = 'N'
+          SELECT
+            bib_master.bib_id
+          FROM bib_master
+            JOIN bib_mfhd
+              ON bib_master.bib_id = bib_mfhd.bib_id
+            JOIN mfhd_master
+              ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id
+            JOIN mfhd_item
+              ON mfhd_master.mfhd_id = mfhd_item.mfhd_id
+            JOIN item_barcode
+              ON mfhd_item.item_id = item_barcode.item_id
+          WHERE
+            mfhd_master.location_id IN (#{recap_locations}) AND
+            bib_master.suppress_in_opac = 'N' AND
+            mfhd_master.suppress_in_opac = 'N'
           GROUP BY bib_master.bib_id
           ORDER BY bib_master.bib_id
         )
