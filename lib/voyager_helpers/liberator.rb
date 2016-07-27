@@ -18,40 +18,22 @@ module VoyagerHelpers
       # @return [Array<MARC::Record>] If `holdings: true` (default) and there
       #   are holdings.
       def get_bib_record(bib_id, conn=nil, opts={})
-        if conn.nil?
-          connection do |c|
-            unless bib_is_suppressed?(bib_id, c)
-              if opts.fetch(:holdings, true)
-                get_bib_with_holdings(bib_id, c, opts)
-              else
-                get_bib_without_holdings(bib_id, c)
-              end
-            end
-          end
-        else
-          unless bib_is_suppressed?(bib_id, conn)
+        connection(conn) do |c|
+          unless bib_is_suppressed?(bib_id, c)
             if opts.fetch(:holdings, true)
-              get_bib_with_holdings(bib_id, conn, opts)
+              get_bib_with_holdings(bib_id, c, opts)
             else
-              get_bib_without_holdings(bib_id, conn)
+              get_bib_without_holdings(bib_id, c)
             end
           end
         end
       end
 
       def get_bib_with_recap_holdings(bib_id, conn=nil)
-        if conn.nil?
-          connection do |c|
-            bib = get_bib_without_holdings(bib_id, c)
-            unless bib.nil?
-              holdings = get_recap_holding_records(bib_id, c)
-              [bib,holdings].flatten!
-            end
-          end
-        else
-          bib = get_bib_without_holdings(bib_id, conn)
+        connection(conn) do |c|
+          bib = get_bib_without_holdings(bib_id, c)
           unless bib.nil?
-            holdings = get_recap_holding_records(bib_id, conn)
+            holdings = get_recap_holding_records(bib_id, c)
             [bib,holdings].flatten!
           end
         end
@@ -60,14 +42,8 @@ module VoyagerHelpers
       def get_recap_bibids(conn=nil, file_name)
         query = VoyagerHelpers::Queries.all_recap_bib_ids
         File.open(file_name, 'a') do |output|
-          if conn.nil?
-            connection do |c|
-              c.exec(query) do |r|
-                output.puts(r.join(''))
-              end
-            end
-          else
-            conn.exec(query) do |r|
+          connection(conn) do |c|
+            c.exec(query) do |r|
               output.puts(r.join(''))
             end
           end
@@ -76,16 +52,9 @@ module VoyagerHelpers
 
       def get_recap_holding_records(bib_id, conn=nil)
         records = []
-        if conn.nil?
-          connection do |c|
-            get_recap_bib_mfhd_ids(bib_id, c).each do |mfhd_id|
-              record = get_holding_record(mfhd_id, c)
-              records << record unless record.nil?
-            end
-          end
-        else
-          get_recap_bib_mfhd_ids(bib_id, conn).each do |mfhd_id|
-            record = get_holding_record(mfhd_id, conn)
+        connection(conn) do |c|
+          get_recap_bib_mfhd_ids(bib_id, c).each do |mfhd_id|
+            record = get_holding_record(mfhd_id, c)
             records << record unless record.nil?
           end
         end
@@ -94,39 +63,24 @@ module VoyagerHelpers
 
       def get_bib_update_date(bib_id, conn=nil)
         query = VoyagerHelpers::Queries.bib_update_date(bib_id)
-        if conn.nil?
-          connection do |c|
-            c.exec(query) { |date| return date.first }
-          end
-        else
-          conn.exec(query) { |date| return date.first }
+        connection(conn) do |c|
+          c.exec(query) { |date| return date.first }
         end
       end
 
       def get_mfhd_update_date(mfhd_id, conn=nil)
         query = VoyagerHelpers::Queries.mfhd_update_date(mfhd_id)
-        if conn.nil?
-          connection do |c|
-            c.exec(query) { |date| return date.first }
-          end
-        else
-          conn.exec(query) { |date| return date.first }
+        connection(conn) do |c|
+          c.exec(query) { |date| return date.first }
         end
       end
 
       # @param mfhd_id [Fixnum] A holding record id
       # @return [MARC::Record]
       def get_holding_record(mfhd_id, conn=nil)
-        if conn.nil?
-          connection do |c|
-            unless mfhd_is_suppressed?(mfhd_id, c)
-              segments = get_mfhd_segments(mfhd_id, c)
-              MARC::Reader.decode(segments.join(''), :external_encoding => "UTF-8", :invalid => :replace, :replace => '') unless segments.empty?
-            end
-          end
-        else
-          unless mfhd_is_suppressed?(mfhd_id, conn)
-            segments = get_mfhd_segments(mfhd_id, conn)
+        connection(conn) do |c|
+          unless mfhd_is_suppressed?(mfhd_id, c)
+            segments = get_mfhd_segments(mfhd_id, c)
             MARC::Reader.decode(segments.join(''), :external_encoding => "UTF-8", :invalid => :replace, :replace => '') unless segments.empty?
           end
         end
@@ -136,16 +90,9 @@ module VoyagerHelpers
       # @return [Array<MARC::Record>]
       def get_holding_records(bib_id, conn=nil)
         records = []
-        if conn.nil?
-          connection do |c|
-            get_bib_mfhd_ids(bib_id, c).each do |mfhd_id|
-              record = get_holding_record(mfhd_id, c)
-              records << record unless record.nil?
-            end
-          end
-        else
-          get_bib_mfhd_ids(bib_id, conn).each do |mfhd_id|
-            record = get_holding_record(mfhd_id, conn)
+        connection(conn) do |c|
+          get_bib_mfhd_ids(bib_id, c).each do |mfhd_id|
+            record = get_holding_record(mfhd_id, c)
             records << record unless record.nil?
           end
         end
@@ -170,22 +117,14 @@ module VoyagerHelpers
       end
 
       def get_items_for_holding(mfhd_id, conn=nil)
-        if conn.nil?
-          connection do |c|
-            accumulate_items_for_holding(mfhd_id, c)
-          end
-        else
-          accumulate_items_for_holding(mfhd_id, conn)
+        connection(conn) do |c|
+          accumulate_items_for_holding(mfhd_id, c)
         end
       end
 
       def get_item(item_id, conn=nil)
-        if conn.nil?
-          connection do |c|
-            get_info_for_item(item_id, c)
-          end
-        else
-          get_info_for_item(item_id, conn)
+        connection(conn) do |c|
+          get_info_for_item(item_id, c)
         end
       end
 
@@ -471,12 +410,8 @@ module VoyagerHelpers
       # @return [Array<Hash>] An Array of Hashes with one key: :on_order.
       def get_orders(bib_id, conn=nil)
         query = VoyagerHelpers::Queries.orders(bib_id)
-        if conn.nil?
-          connection do |c|
-            exec_get_orders(query, c)
-          end
-        else
-          exec_get_orders(query, conn)
+        connection(conn) do |c|
+          exec_get_orders(query, c)
         end
       end
 
@@ -495,35 +430,23 @@ module VoyagerHelpers
 
       def mfhd_is_suppressed?(mfhd_id, conn=nil)
         query = VoyagerHelpers::Queries.mfhd_suppressed(mfhd_id)
-        if conn.nil?
-          connection do |c|
-            exec_mfhd_is_suppressed?(query, c)
-          end
-        else
-          exec_mfhd_is_suppressed?(query, conn)
+        connection(conn) do |c|
+          exec_mfhd_is_suppressed?(query, c)
         end
       end
 
       def exec_mfhd_is_suppressed?(query, conn)
         suppressed = false
-        if conn.nil?
-          connection do |c|
-            suppressed = c.select_one(query) == ['Y']
-          end
-        else
-          suppressed = conn.select_one(query) == ['Y']
+        connection(conn) do |c|
+          suppressed = c.select_one(query) == ['Y']
         end
         suppressed
       end
 
       def get_info_for_item(item_id, conn=nil, full=true)
         query = full == true ? VoyagerHelpers::Queries.full_item_info(item_id) : VoyagerHelpers::Queries.brief_item_info(item_id)
-        if conn.nil?
-          connection do |c|
-            exec_get_info_for_item(query, c, full)
-          end
-        else
-          exec_get_info_for_item(query, conn, full)
+        connection(conn) do |c|
+          exec_get_info_for_item(query, c, full)
         end
       end
 
@@ -598,12 +521,8 @@ module VoyagerHelpers
 
       def get_item_ids_for_holding(mfhd_id, conn)
         query = VoyagerHelpers::Queries.mfhd_item_ids(mfhd_id)
-        if conn.nil?
-          connection do |c|
-            exec_get_item_ids_for_holding(query, c)
-          end
-        else
-          exec_get_item_ids_for_holding(query, conn)
+        connection(conn) do |c|
+          exec_get_item_ids_for_holding(query, c)
         end
       end
 
@@ -616,12 +535,8 @@ module VoyagerHelpers
       def bib_is_suppressed?(bib_id, conn=nil)
         suppressed = false
         query = VoyagerHelpers::Queries.bib_suppressed(bib_id)
-        if conn.nil?
-          connection do |c|
-            suppressed = c.select_one(query) == ['Y']
-          end
-        else
-          suppressed = conn.select_one(query) == ['Y']
+        connection(conn) do |c|
+          suppressed = c.select_one(query) == ['Y']
         end
         suppressed
       end
@@ -683,23 +598,15 @@ module VoyagerHelpers
 
       def get_bib_create_date(bib_id, conn=nil)
         query = VoyagerHelpers::Queries.bib_create_date(bib_id)
-        if conn.nil?
-          connection do |c|
-            c.exec(query) { |date| return date.first }
-          end
-        else
-          conn.exec(query) { |date| return date.first }
+        connection(conn) do |c|
+          c.exec(query) { |date| return date.first }
         end
       end
 
       def get_item_create_date(item_id, conn=nil)
         query = VoyagerHelpers::Queries.item_create_date(item_id)
-        if conn.nil?
-          connection do |c|
-            c.exec(query) { |date| return date.first }
-          end
-        else
-          conn.exec(query) { |date| return date.first }
+        connection(conn) do |c|
+          c.exec(query) { |date| return date.first }
         end
       end
 
@@ -726,45 +633,29 @@ module VoyagerHelpers
 
       def segments(query, conn=nil)
         segments = []
-        if conn.nil?
-          connection do |c|
-            c.exec(query) { |s| segments << s }
-          end
-        else
-          conn.exec(query) { |s| segments << s }
+        connection(conn) do |c|
+          c.exec(query) { |s| segments << s }
         end
         segments
       end
 
       def get_recap_bib_mfhd_ids(bib_id, conn=nil)
-        if conn.nil?
-          connection do |c|
-            exec_get_bib_mfhd_ids(VoyagerHelpers::Queries.recap_mfhd_ids(bib_id), c)
-          end
-        else
-          exec_get_bib_mfhd_ids(VoyagerHelpers::Queries.recap_mfhd_ids(bib_id), conn)
+        connection(conn) do |c|
+          exec_get_bib_mfhd_ids(VoyagerHelpers::Queries.recap_mfhd_ids(bib_id), c)
         end
       end
 
       def get_bib_mfhd_ids(bib_id, conn=nil)
         query = VoyagerHelpers::Queries.mfhd_ids(bib_id)
-        if conn.nil?
-          connection do |c|
-            exec_get_bib_mfhd_ids(query, c)
-          end
-        else
-          exec_get_bib_mfhd_ids(query, conn)
+        connection(conn) do |c|
+          exec_get_bib_mfhd_ids(query, c)
         end
       end
 
       def exec_get_bib_mfhd_ids(query, conn)
         ids = []
-        if conn.nil?
-          connection do |c|
-            c.exec(query) { |id| ids << id.first }
-          end
-        else
-          conn.exec(query) { |id| ids << id.first }
+        connection(conn) do |c|
+          c.exec(query) { |id| ids << id.first }
         end
         ids
       end
