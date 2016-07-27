@@ -359,7 +359,8 @@ module VoyagerHelpers
             )
       end
 
-      def course_bibs(reserve_list_id)
+      def course_bibs(ids)
+        ids = OCI8::in_cond(:id, ids)
         %Q(
           SELECT
             reserve_list.reserve_list_id,
@@ -367,7 +368,7 @@ module VoyagerHelpers
           FROM ((reserve_list join
                reserve_list_items on reserve_list.reserve_list_id = reserve_list_items.reserve_list_id) join
                bib_item on reserve_list_items.item_id = bib_item.item_id)
-          WHERE reserve_list.reserve_list_id = #{reserve_list_id}
+          WHERE reserve_list.reserve_list_id IN (#{ids.names})
           GROUP BY reserve_list.reserve_list_id,
                     bib_item.bib_id
         )
