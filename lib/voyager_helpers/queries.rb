@@ -341,13 +341,20 @@ module VoyagerHelpers
             reserve_list_courses.section_id,
             instructor.first_name,
             instructor.last_name
-          FROM ((((reserve_list_courses join
-                  department on reserve_list_courses.department_id = department.department_id) join
-                  instructor on reserve_list_courses.instructor_id = instructor.instructor_id) join
-                  course on reserve_list_courses.course_id = course.course_id) join
-                  reserve_list on reserve_list.reserve_list_id = reserve_list_courses.reserve_list_id)
-                  join reserve_list_items on reserve_list.reserve_list_id = reserve_list_items.reserve_list_id
-          WHERE reserve_list.expire_date >= sysdate
+          FROM reserve_list_courses 
+            JOIN department
+              ON reserve_list_courses.department_id = department.department_id
+            JOIN instructor
+              ON reserve_list_courses.instructor_id = instructor.instructor_id
+            JOIN course
+              ON reserve_list_courses.course_id = course.course_id
+            JOIN reserve_list
+              ON reserve_list.reserve_list_id = reserve_list_courses.reserve_list_id
+            JOIN reserve_list_items
+              ON reserve_list.reserve_list_id = reserve_list_items.reserve_list_id
+          WHERE 
+            reserve_list.expire_date >= sysdate
+            AND reserve_list.effect_date <= sysdate
           GROUP BY
             reserve_list.reserve_list_id,
             department.department_name,
