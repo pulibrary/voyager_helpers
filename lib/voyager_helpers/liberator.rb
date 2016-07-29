@@ -29,31 +29,32 @@ module VoyagerHelpers
         end
       end
 
-      def get_bib_with_recap_holdings(bib_id, conn=nil)
+      def get_bib_with_location_holdings(bib_id, location, conn=nil)
         connection(conn) do |c|
           bib = get_bib_without_holdings(bib_id, c)
           unless bib.nil?
-            holdings = get_recap_holding_records(bib_id, c)
+            holdings = get_location_holding_records(bib_id, location, c)
             [bib,holdings].flatten!
           end
         end
       end
 
-      def get_recap_bibids(conn=nil, file_name)
-        query = VoyagerHelpers::Queries.all_recap_bib_ids
+      def get_bibids_by_location(file_name, location, conn=nil)
+        locations = Array(location)
+        query = VoyagerHelpers::Queries.location_bib_ids(locations)
         File.open(file_name, 'a') do |output|
-          connection(conn) do |c|
-            c.exec(query) do |r|
+          connection do |c|
+            c.exec(query, *locations) do |r|
               output.puts(r.join(''))
             end
           end
         end
       end
 
-      def get_recap_holding_records(bib_id, conn=nil)
+      def get_location_holding_records(bib_id, location, conn=nil)
         records = []
         connection(conn) do |c|
-          get_recap_bib_mfhd_ids(bib_id, c).each do |mfhd_id|
+          get_location_bib_mfhd_ids(bib_id, location, c).each do |mfhd_id|
             record = get_holding_record(mfhd_id, c)
             records << record unless record.nil?
           end
@@ -639,10 +640,21 @@ module VoyagerHelpers
         segments
       end
 
-      def get_recap_bib_mfhd_ids(bib_id, conn=nil)
+      def get_location_bib_mfhd_ids(bib_id, location, conn=nil)
+        bib_ids = Array(bib_id)
+        locations = Array(location)
+        query = VoyagerHelpers::Queries.location_mfhd_ids(bib_ids, locations)
         connection(conn) do |c|
-          exec_get_bib_mfhd_ids(VoyagerHelpers::Queries.recap_mfhd_ids(bib_id), c)
+          exec_get_location_bib_mfhd_ids(query, bib_ids, locations, c)
         end
+      end
+
+      def exec_get_location_bib_mfhd_ids(query, bib_ids, locations, conn)
+        ids = []
+        connection(conn) do |c|
+          c.exec(query, *bib_ids, *locations) { |id| ids << id.first }
+        end
+        ids
       end
 
       def get_bib_mfhd_ids(bib_id, conn=nil)
