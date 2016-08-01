@@ -336,6 +336,7 @@ module VoyagerHelpers
           SELECT
             reserve_list.reserve_list_id,
             department.department_name,
+            department.department_code,
             course.course_name,
             course.course_number,
             reserve_list_courses.section_id,
@@ -358,6 +359,7 @@ module VoyagerHelpers
           GROUP BY
             reserve_list.reserve_list_id,
             department.department_name,
+            department.department_code,
             course.course_name,
             course.course_number,
             reserve_list_courses.section_id,
