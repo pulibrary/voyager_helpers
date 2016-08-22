@@ -29,38 +29,6 @@ module VoyagerHelpers
         end
       end
 
-      def get_bib_with_recap_holdings(bib_id, conn=nil)
-        connection(conn) do |c|
-          bib = get_bib_without_holdings(bib_id, c)
-          unless bib.nil?
-            holdings = get_recap_holding_records(bib_id, c)
-            [bib,holdings].flatten!
-          end
-        end
-      end
-
-      def get_recap_bibids(conn=nil, file_name)
-        query = VoyagerHelpers::Queries.all_recap_bib_ids
-        File.open(file_name, 'a') do |output|
-          connection(conn) do |c|
-            c.exec(query) do |r|
-              output.puts(r.join(''))
-            end
-          end
-        end
-      end
-
-      def get_recap_holding_records(bib_id, conn=nil)
-        records = []
-        connection(conn) do |c|
-          get_recap_bib_mfhd_ids(bib_id, c).each do |mfhd_id|
-            record = get_holding_record(mfhd_id, c)
-            records << record unless record.nil?
-          end
-        end
-        records
-      end
-
       def get_bib_update_date(bib_id, conn=nil)
         query = VoyagerHelpers::Queries.bib_update_date(bib_id)
         connection(conn) do |c|
@@ -637,12 +605,6 @@ module VoyagerHelpers
           c.exec(query) { |s| segments << s }
         end
         segments
-      end
-
-      def get_recap_bib_mfhd_ids(bib_id, conn=nil)
-        connection(conn) do |c|
-          exec_get_bib_mfhd_ids(VoyagerHelpers::Queries.recap_mfhd_ids(bib_id), c)
-        end
       end
 
       def get_bib_mfhd_ids(bib_id, conn=nil)

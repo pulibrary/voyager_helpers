@@ -37,7 +37,7 @@ module VoyagerHelpers
           503
           504
           515
-        ).join(', ')
+        )
       end
       
       def bib_suppressed(bib_id)
@@ -248,32 +248,6 @@ module VoyagerHelpers
             mfhd_master.suppress_in_opac = 'N' AND
             item_barcode.barcode_status = '1' AND
             item_barcode.item_barcode = #{item_barcode}
-        )
-      end
-
-      def all_recap_bib_ids
-        %Q(
-          SELECT bib_master.bib_id
-          FROM (
-                 (
-                   (bib_master JOIN bib_mfhd ON bib_master.bib_id = bib_mfhd.bib_id) 
-                 JOIN mfhd_master ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id) 
-               JOIN mfhd_item ON mfhd_master.mfhd_id = mfhd_item.mfhd_id) 
-          WHERE mfhd_master.location_id IN (#{recap_locations})
-          AND bib_master.suppress_in_opac = 'N'
-          AND mfhd_master.suppress_in_opac = 'N'
-          GROUP BY bib_master.bib_id
-          ORDER BY bib_master.bib_id
-        )
-      end
-
-      def recap_mfhd_ids(bib_id)
-        %Q(
-        SELECT bib_mfhd.mfhd_id
-        FROM bib_mfhd JOIN mfhd_master ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id
-        WHERE (bib_id = #{bib_id}
-        and location_id IN (#{recap_locations})
-        and suppress_in_opac = 'N')
         )
       end
 
