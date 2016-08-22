@@ -39,7 +39,33 @@ module VoyagerHelpers
           515
         )
       end
-      
+
+      def barcode_record_ids_location(barcodes, locations)
+        barcodes = OCI8::in_cond(:barcodes, barcodes)
+        locations = OCI8::in_cond(:locations, locations)
+        %Q(
+          SELECT
+            bib_item.bib_id,
+            mfhd_item.mfhd_id,
+            item_barcode.item_id
+          FROM item_barcode
+            JOIN mfhd_item
+              ON item_barcode.item_id = mfhd_item.item_id
+            JOIN bib_item
+              ON item_barcode.item_id = bib_item.item_id
+            JOIN mfhd_master
+              ON mfhd_item.mfhd_id = mfhd_master.mfhd_id
+            JOIN bib_master
+              ON bib_item.bib_id = bib_master.bib_id
+          WHERE
+            item_barcode.item_barcode IN (#{barcodes.names})
+            AND bib_master.suppress_in_opac = 'N'
+            AND mfhd_master.suppress_in_opac = 'N'
+            AND mfhd_master.location_id IN (#{locations.names})
+            AND item_barcode.barcode_status = 1
+        )
+      end
+
       def bib_suppressed(bib_id)
         %Q(
         SELECT suppress_in_opac FROM bib_master
