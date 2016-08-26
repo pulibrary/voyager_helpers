@@ -110,7 +110,8 @@ module VoyagerHelpers
           LEFT JOIN item_barcode
             ON item_barcode.item_id = item.item_id
         WHERE item.item_id=#{item_id} AND
-          item_status.item_status NOT IN ('5', '6', '16', '19', '20', '21', '23', '24')
+          item_status.item_status NOT IN ('5', '6', '16', '19', '20', '21', '23', '24') AND
+          item_barcode.barcode_status = 1
         )
       end
 
@@ -272,7 +273,7 @@ module VoyagerHelpers
           WHERE
             bib_master.suppress_in_opac = 'N' AND
             mfhd_master.suppress_in_opac = 'N' AND
-            item_barcode.barcode_status = '1' AND
+            item_barcode.barcode_status = 1 AND
             item_barcode.item_barcode = #{item_barcode}
         )
       end
