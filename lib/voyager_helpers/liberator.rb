@@ -186,7 +186,7 @@ module VoyagerHelpers
                 end
               else
                 item = get_info_for_item(holding_item_ids.first, c, false)
-                availability[bib_id][mfhd_id][:on_reserve] = item[:temp_location] unless item[:temp_location].nil?
+                availability[bib_id][mfhd_id][:temp_loc] = item[:temp_location] unless item[:temp_location].nil?
                 availability[bib_id][mfhd_id][:copy_number] = item[:copy_number]
                 availability[bib_id][mfhd_id][:item_id] = item[:id]
                 item[:status]
@@ -208,7 +208,7 @@ module VoyagerHelpers
           item_hash[:barcode] = item[:barcode]
           item_hash[:id] = item[:id]
           item_hash[:location] = item[:perm_location]
-          item_hash[:on_reserve] = item[:temp_location] unless item[:temp_location].nil?
+          item_hash[:temp_loc] = item[:temp_location] unless item[:temp_location].nil?
           item_hash[:copy_number] = item[:copy_number]
           item_hash[:item_sequence_number] = item[:item_sequence_number]
           item_hash[:status] = item[:status]
