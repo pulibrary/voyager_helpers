@@ -293,20 +293,10 @@ module VoyagerHelpers
       # @return [String] on-order status message and date of status if the status code in whitelist
       # if code is not whitelisted return nil
       def get_order_status(bib_id)
-        po_pending = 0
-        po_approved = 1
-        po_rec_partial = 3
-        po_rec_complete = 4
-        po_status_whitelist = [po_pending, po_approved, po_rec_partial, po_rec_complete]
-        li_pending = 0
-        li_rec_complete = 1
-        li_approved = 8
-        li_rec_partial = 9
-        li_status_whitelist = [li_pending, li_rec_complete, li_approved, li_rec_partial]
         status = nil
         unless (order = get_orders(bib_id)).empty?
           po_status, li_status = order.first[:po_status], order.first[:li_status]
-          if po_status_whitelist.include?(po_status) or li_status_whitelist.include?(li_status)
+          if on_order?(po_status, li_status)
             status = if li_status == li_rec_complete
               'Order Received'
             elsif li_status == li_pending
@@ -321,6 +311,28 @@ module VoyagerHelpers
       end
 
       private
+
+      def on_order?(po_status, li_status)
+        po_pending = 0
+        po_approved = 1
+        po_rec_partial = 3
+        po_rec_complete = 4
+        po_complete = 5
+        po_status_whitelist = [po_pending, po_approved, po_rec_partial, po_rec_complete]
+        li_approved = 8
+        li_rec_partial = 9
+        li_status_whitelist = [li_pending, li_rec_complete, li_approved, li_rec_partial]
+        (po_status_whitelist.include?(po_status) or li_status_whitelist.include?(li_status)) and
+          po_status != po_complete
+      end
+
+      def li_pending
+        0
+      end
+
+      def li_rec_complete
+        1
+      end
 
       def group_items(data_arr)
         hsh = data_arr.group_by { |holding| holding[:perm_location] }
