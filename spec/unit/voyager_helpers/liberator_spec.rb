@@ -17,14 +17,19 @@ describe VoyagerHelpers::Liberator do
                         po_status: 1
                         }] }
     let(:partially_rec_order) { [{
-                        date: Date.parse("2015-12-16T15:34:00.000-05:00"),
+                        date: date,
                         li_status: 8,
                         po_status: 3
                         }] }
     let(:received_order) { [{
-                        date: Date.parse("2015-12-15T15:34:00.000-05:00"),
+                        date: date,
                         li_status: 1,
                         po_status: 4
+                        }] }
+    let(:complete_order) { [{
+                        date: date,
+                        li_status: 9,
+                        po_status: 5
                         }] }
 
     it 'returns nil when no order found for bib' do
@@ -50,6 +55,10 @@ describe VoyagerHelpers::Liberator do
     it "includes status date with order response" do
       allow(described_class).to receive(:get_orders).and_return(approved_order)
       expect(described_class.get_order_status(placeholder_id)).to include(date.strftime('%m-%d-%Y'))
+    end
+    it "it returns nil when order is complete" do
+      allow(described_class).to receive(:get_orders).and_return(complete_order)
+      expect(described_class.get_order_status(placeholder_id)).to eq nil
     end
   end
 
