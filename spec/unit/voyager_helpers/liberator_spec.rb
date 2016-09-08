@@ -179,12 +179,12 @@ describe VoyagerHelpers::Liberator do
     it 'includes temp_location code for on reserve item' do
       allow(described_class).to receive(:get_items_for_holding).and_return(reserve_item)
       availability = described_class.get_full_mfhd_availability(placeholder_id).first
-      expect(availability[:on_reserve]).to eq temp
+      expect(availability[:temp_loc]).to eq temp
     end
     it 'temp_location returned if present, including for non-reserve items' do
       allow(described_class).to receive(:get_items_for_holding).and_return(temp_no_reserve)
       availability = described_class.get_full_mfhd_availability(placeholder_id).first
-      expect(availability[:on_reserve]).to eq temp
+      expect(availability[:temp_loc]).to eq temp
     end
     it 'sorts multiple items by item sequence number in reverse, nil last' do
       allow(described_class).to receive(:get_items_for_holding).and_return(three_items)
