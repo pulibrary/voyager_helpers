@@ -158,6 +158,25 @@ module VoyagerHelpers
         )
       end
 
+      def mfhd_orders(mfhd_id)
+        %Q(
+        SELECT
+          purchase_order.po_status,
+          line_item_copy_status.line_item_status,
+          line_item_copy_status.status_date
+        FROM line_item_copy_status
+          JOIN line_item
+            ON line_item_copy_status.line_item_id = line_item.line_item_id
+          JOIN purchase_order
+            ON line_item.po_id = purchase_order.po_id
+        WHERE
+          line_item_copy_status.mfhd_id = #{mfhd_id}
+          AND rownum <=1
+        ORDER BY
+          line_item_copy_status.status_date DESC
+        )
+      end
+
       def statuses
         %Q(
         SELECT item_status_type, item_status_desc
