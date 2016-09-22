@@ -145,20 +145,8 @@ module VoyagerHelpers
         )
       end
 
-      def orders(bib_id)
-        %Q(
-        SELECT LINE_ITEM.BIB_ID,
-          PURCHASE_ORDER.PO_STATUS,
-          LINE_ITEM_COPY_STATUS.LINE_ITEM_STATUS,
-          LINE_ITEM_COPY_STATUS.STATUS_DATE
-        FROM ((PURCHASE_ORDER
-        INNER JOIN LINE_ITEM ON PURCHASE_ORDER.PO_ID = LINE_ITEM.PO_ID)
-        INNER JOIN LINE_ITEM_COPY_STATUS ON LINE_ITEM.LINE_ITEM_ID = LINE_ITEM_COPY_STATUS.LINE_ITEM_ID)
-        WHERE (LINE_ITEM.BIB_ID = #{bib_id})
-        )
-      end
-
-      def mfhd_orders(mfhd_id)
+      def orders(mfhd_id)
+        mfhd_id = OCI8::in_cond(:mfhd_id, mfhd_id)
         %Q(
         SELECT
           purchase_order.po_status,
@@ -170,7 +158,7 @@ module VoyagerHelpers
           JOIN purchase_order
             ON line_item.po_id = purchase_order.po_id
         WHERE
-          line_item_copy_status.mfhd_id = #{mfhd_id}
+          line_item_copy_status.mfhd_id IN (#{mfhd_id.names})
           AND rownum <=1
         ORDER BY
           line_item_copy_status.status_date DESC
