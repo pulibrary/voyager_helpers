@@ -114,7 +114,6 @@ module VoyagerHelpers
       def get_items_for_bib(bib_id)
         connection do |c|
           items = []
-          any_items = false
           mfhds = get_holding_records(bib_id, c)
           mfhds.each do |mfhd|
             mfhd_hash = mfhd.to_hash
@@ -136,10 +135,6 @@ module VoyagerHelpers
               data[:items].sort_by! { |i| i[:item_sequence_number] || 0 }.reverse!
               items << data
             end
-          end
-          unless any_items
-            orders = get_orders(bib_id, c)
-            items << { perm_location: 'order', items: orders} unless orders.empty?
           end
           group_items(items)
         end
@@ -177,7 +172,7 @@ module VoyagerHelpers
               availability[bib_id][mfhd_id][:location] = field_852
 
               availability[bib_id][mfhd_id][:status] = if holding_item_ids.empty?
-                if !(order_status = get_order_status(bib_id)).nil?
+                if !(order_status = get_order_status(mfhd_id)).nil?
                   order_status
                 elsif field_852[/^elf/]
                   'Online'
@@ -289,12 +284,12 @@ module VoyagerHelpers
         end
       end
 
-      # @param bib_id [Fixnum] Find order status for provided bib ID
+      # @param mfhd_id [Fixnum] Find order status for provided mfhd ID
       # @return [String] on-order status message and date of status if the status code in whitelist
       # if code is not whitelisted return nil
-      def get_order_status(bib_id)
+      def get_order_status(mfhd_id)
         status = nil
-        unless (order = get_orders(bib_id)).empty?
+        unless (order = get_orders(mfhd_id)).empty?
           po_status, li_status = order.first[:po_status], order.first[:li_status]
           if on_order?(po_status, li_status)
             status = if li_status == li_rec_complete
@@ -386,24 +381,19 @@ module VoyagerHelpers
         subfields_from_field(hsh_852, 'b').first['b']
       end
 
-      # @param bib_id [Fixnum] A bib record id
-      # @return [Array<Hash>] An Array of Hashes with one key: :on_order.
-      def get_orders(bib_id, conn=nil)
-        query = VoyagerHelpers::Queries.orders(bib_id)
-        connection(conn) do |c|
-          exec_get_orders(query, c)
-        end
-      end
-
-      # return status codes for all orders for debugging and for
-      # determining availability message
-      def exec_get_orders(query, conn)
+      # @param mfhd_id [Fixnum] A mfhd record id
+      # @return [Array<Hash>] An Array of Hashes with three keys: :date, :li_status, :po_status.
+      def get_orders(mfhd_id, conn=nil)
+        mfhd_id = Array(mfhd_id)
         statuses = []
-        conn.exec(query) do |bib_id,po_status,order_status,date|
-          date = date.to_datetime unless date.nil?
-          statuses << { date: date,
-                        li_status: order_status,
-                        po_status: po_status }
+        query = VoyagerHelpers::Queries.orders(mfhd_id)
+        connection(conn) do |c|
+          c.exec(query, *mfhd_id) do |po_status, order_status, date|
+            date = date.to_datetime unless date.nil?
+            statuses << { date: date,
+                          li_status: order_status,
+                          po_status: po_status }
+          end
         end
         statuses
       end
