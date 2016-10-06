@@ -626,7 +626,7 @@ module VoyagerHelpers
             record_hash['fields'] << h
           end
         end #ReCAP-specific section ends here
-        record_hash['fields'] << {"876"=>{"ind1"=>"0", "ind2"=>"0", "subfields"=>[{"0"=>holding_id}, {"a"=>item[:id]}, {"h"=>recap_use_restriction}, {"j"=>item[:status]}, {"p"=>item[:barcode]}, {"t"=>item[:copy_number]}, {"x"=>group_designation}, {"z"=>customer_code}]}}
+        record_hash['fields'] << {"876"=>{"ind1"=>"0", "ind2"=>"0", "subfields"=>[{"0"=>holding_id.to_s}, {"a"=>item[:id].to_s}, {"h"=>recap_use_restriction}, {"j"=>item[:status]}, {"p"=>item[:barcode].to_s}, {"t"=>item[:copy_number].to_s}, {"x"=>group_designation}, {"z"=>customer_code}]}}
         MARC::Record.new_from_hash(record_hash)
       end
 
