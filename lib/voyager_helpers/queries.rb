@@ -40,9 +40,8 @@ module VoyagerHelpers
         )
       end
 
-      def barcode_record_ids_location(barcodes, locations)
+      def barcode_record_ids(barcodes)
         barcodes = OCI8::in_cond(:barcodes, barcodes)
-        locations = OCI8::in_cond(:locations, locations)
         %Q(
           SELECT
             bib_item.bib_id,
@@ -61,7 +60,6 @@ module VoyagerHelpers
             item_barcode.item_barcode IN (#{barcodes.names})
             AND bib_master.suppress_in_opac = 'N'
             AND mfhd_master.suppress_in_opac = 'N'
-            AND mfhd_master.location_id IN (#{locations.names})
             AND item_barcode.barcode_status = 1
         )
       end
