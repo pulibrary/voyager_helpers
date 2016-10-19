@@ -391,17 +391,27 @@ module VoyagerHelpers
         )
       end
 
-      def current_periodicals(mfhd_id)
+      def current_periodicals
         %Q(
         SELECT
-          SERIAL_ISSUES.ENUMCHRON
-        FROM (LINE_ITEM INNER JOIN LINE_ITEM_COPY_STATUS ON LINE_ITEM.LINE_ITEM_ID = LINE_ITEM_COPY_STATUS.LINE_ITEM_ID) INNER JOIN
-             (((SUBSCRIPTION INNER JOIN COMPONENT ON SUBSCRIPTION.SUBSCRIPTION_ID = COMPONENT.SUBSCRIPTION_ID) INNER JOIN
-             ISSUES_RECEIVED ON COMPONENT.COMPONENT_ID = ISSUES_RECEIVED.COMPONENT_ID) INNER JOIN
-             SERIAL_ISSUES ON (ISSUES_RECEIVED.COMPONENT_ID = SERIAL_ISSUES.COMPONENT_ID) AND
-             (ISSUES_RECEIVED.ISSUE_ID = SERIAL_ISSUES.ISSUE_ID)) ON LINE_ITEM_COPY_STATUS.LINE_ITEM_ID = SUBSCRIPTION.LINE_ITEM_ID
-        WHERE (((LINE_ITEM_COPY_STATUS.MFHD_ID = #{mfhd_id}) AND (SERIAL_ISSUES.RECEIVED)='1') AND ((ISSUES_RECEIVED.OPAC_SUPPRESSED)='1'))
-        ORDER BY SERIAL_ISSUES.RECEIPT_DATE DESC
+          serial_issues.enumchron
+        FROM subscription
+          JOIN component
+            ON subscription.subscription_id = component.subscription_id
+          JOIN issues_received
+            ON component.component_id = issues_received.component_id
+          JOIN serial_issues
+            ON issues_received.component_id = serial_issues.component_id
+              AND issues_received.issue_id = serial_issues.issue_id
+          JOIN line_item_copy_status
+            ON subscription.line_item_id = line_item_copy_status.line_item_id
+          JOIN line_item
+            ON line_item_copy_status.line_item_id = line_item.line_item_id
+        WHERE
+          line_item_copy_status.mfhd_id = :mfhd_id
+          AND serial_issues.received = 1
+          AND issues_received.opac_suppressed = 1
+        ORDER BY serial_issues.component_id DESC, serial_issues.issue_id DESC
         )
       end
     end # class << self
