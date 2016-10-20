@@ -220,12 +220,15 @@ module VoyagerHelpers
       # @param mfhd_id [Fixnum] get current issues for mfhd
       # @return [Array<Hash>] Current issues
       def get_current_issues(mfhd_id)
-        query = VoyagerHelpers::Queries.current_periodicals(mfhd_id)
         issues = []
         connection do |c|
-          c.exec(query) do |enum|
-            issues << enum.first
+          cursor = c.parse(VoyagerHelpers::Queries.current_periodicals)
+          cursor.bind_param(':mfhd_id', mfhd_id)
+          cursor.exec()
+          while enum = cursor.fetch
+            issues << enum
           end
+          cursor.close()
         end
         issues
       end
