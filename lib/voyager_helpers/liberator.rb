@@ -308,19 +308,11 @@ module VoyagerHelpers
       # @param barcode [String] An item barcode
       # @return [Array<MARC::Record>]
       def get_records_from_barcode(barcode)
-        barcode = Array(barcode)
-        record_ids = []
         records = []
-        query = VoyagerHelpers::Queries.barcode_record_ids(barcode)
         connection do |c|
-          c.exec(query, *barcode) do |row|
-            ids = [row.shift, row.shift, row.shift]
-            record_ids << ids
-          end
+          record_ids = get_record_ids_from_barcode(barcode, c)
           record_ids.each do |row|
-            bib_id = row[0]
-            mfhd_id = row[1]
-            item_id = row[2]
+            bib_id, mfhd_id, item_id = row
             bib = get_bib_record(bib_id, c, {:holdings=>false})
             holding = get_holding_record(mfhd_id, c)
             item = get_item(item_id, c)
@@ -466,6 +458,20 @@ module VoyagerHelpers
           end
         end
         info
+      end
+
+      def get_record_ids_from_barcode(barcode, conn=nil)
+        record_ids = []
+        connection(conn) do |c|
+          cursor = c.parse(VoyagerHelpers::Queries.record_ids_for_barcode)
+          cursor.bind_param(':barcode', barcode)
+          cursor.exec()
+          while row = cursor.fetch
+            record_ids << row
+          end
+          cursor.close()
+        end
+        record_ids
       end
 
       def valid_ascii(string)

@@ -260,12 +260,12 @@ module VoyagerHelpers
         )
       end
 
-      def record_ids_for_barcode(item_barcode)
+      def record_ids_for_barcode
         %Q(
           SELECT 
-            item_barcode.item_id,
+            bib_master.bib_id,
             mfhd_master.mfhd_id,
-            bib_master.bib_id
+            item_barcode.item_id
           FROM item_barcode 
             JOIN bib_item 
               ON item_barcode.item_id = bib_item.item_id
@@ -279,7 +279,7 @@ module VoyagerHelpers
             bib_master.suppress_in_opac = 'N' AND
             mfhd_master.suppress_in_opac = 'N' AND
             item_barcode.barcode_status = 1 AND
-            item_barcode.item_barcode = #{item_barcode}
+            item_barcode.item_barcode = :barcode
         )
       end
 
