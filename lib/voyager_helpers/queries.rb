@@ -111,7 +111,7 @@ module VoyagerHelpers
             ON item_barcode.item_id = item.item_id
         WHERE item.item_id=#{item_id} AND
           item_status.item_status NOT IN ('5', '6', '16', '19', '20', '21', '23', '24') AND
-          item_barcode.barcode_status = 1
+          (item_barcode.barcode_status = 1 OR item_barcode.barcode_status IS NULL)
         )
       end
 
