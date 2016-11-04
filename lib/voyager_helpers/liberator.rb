@@ -292,8 +292,9 @@ module VoyagerHelpers
       # if code is not whitelisted return nil
       def get_order_status(mfhd_id)
         status = nil
-        unless (order = get_orders(mfhd_id)).empty?
-          po_status, li_status = order.first[:po_status], order.first[:li_status]
+        unless (orders = get_orders(mfhd_id)).empty?
+          latest_order = orders.max { |a,b| a[:date] <=> b[:date] }
+          po_status, li_status = latest_order[:po_status], latest_order[:li_status]
           if on_order?(po_status, li_status)
             status = if li_status == li_rec_complete
               'Order Received'
@@ -302,7 +303,7 @@ module VoyagerHelpers
             else
               'On-Order'
             end
-            status << " #{order.first[:date].strftime('%m-%d-%Y')}" unless order.first[:date].nil?
+            status << " #{latest_order[:date].strftime('%m-%d-%Y')}" unless latest_order[:date].nil?
           end
         end
         status

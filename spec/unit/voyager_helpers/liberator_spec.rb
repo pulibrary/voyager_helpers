@@ -4,7 +4,8 @@ describe VoyagerHelpers::Liberator do
   let(:placeholder_id) { 12345 }
 
   describe '#get_order_status' do
-    let(:date) { Date.parse("2015-12-14T15:34:00.000-05:00") }
+    let(:date) { Date.parse("2015-12-14T15:34:00.000-05:00").to_datetime }
+    let(:newer_date) { Date.parse("2016-12-14T15:34:00.000-05:00").to_datetime }
     let(:no_order_found) { {} }
     let(:pre_order) { [{
                         date: nil,
@@ -17,7 +18,7 @@ describe VoyagerHelpers::Liberator do
                         po_status: 1
                         }] }
     let(:partially_rec_order) { [{
-                        date: date,
+                        date: newer_date,
                         li_status: 8,
                         po_status: 3
                         }] }
@@ -31,6 +32,13 @@ describe VoyagerHelpers::Liberator do
                         li_status: 9,
                         po_status: 5
                         }] }
+    let(:canceled_order) { {
+                        date: date,
+                        li_status: 7,
+                        po_status: 6
+                        } }
+    let(:two_orders) { [canceled_order, partially_rec_order.first] }
+
 
     it 'returns nil when no order found for bib' do
       allow(described_class).to receive(:get_orders).and_return(no_order_found)
@@ -59,6 +67,10 @@ describe VoyagerHelpers::Liberator do
     it "it returns nil when order is complete" do
       allow(described_class).to receive(:get_orders).and_return(complete_order)
       expect(described_class.get_order_status(placeholder_id)).to eq nil
+    end
+    it 'returns order status of newer order when multiple orders' do
+      allow(described_class).to receive(:get_orders).and_return(two_orders)
+      expect(described_class.get_order_status(placeholder_id)).to include('On-Order')
     end
   end
 
