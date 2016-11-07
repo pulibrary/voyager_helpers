@@ -60,7 +60,7 @@ module VoyagerHelpers
       def exec_ids_to_file(query, file_handle, connection)
         File.open(file_handle, 'w') do |f|
           connection.exec(query) do |id, created, updated|
-            f.write("#{id} #{created.to_datetime unless created.nil?} #{updated.to_datetime unless updated.nil?}\n")
+            f.write("#{id} #{created.to_datetime.new_offset(0) unless created.nil?} #{updated.to_datetime.new_offset(0) unless updated.nil?}\n")
           end
         end
       end
