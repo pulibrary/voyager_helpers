@@ -159,7 +159,6 @@ module VoyagerHelpers
             ON line_item.po_id = purchase_order.po_id
         WHERE
           line_item_copy_status.mfhd_id IN (#{mfhd_id.names})
-          AND rownum <=1
         ORDER BY
           line_item_copy_status.status_date DESC
         )
