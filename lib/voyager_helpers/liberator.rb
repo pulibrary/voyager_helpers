@@ -313,10 +313,7 @@ module VoyagerHelpers
           record_ids = get_record_ids_from_barcode(barcode, c)
           record_ids.each do |row|
             bib_id, mfhd_id, item_id = row
-            bib = get_bib_record(bib_id, c, {:holdings=>false})
-            holding = get_holding_record(mfhd_id, c)
-            item = get_item(item_id, c)
-            records << merge_holding_item_into_bib(bib, holding, item, c)
+            records << single_record_from_barcode(bib_id, mfhd_id, item_id, c)
           end
         end
         records
@@ -460,20 +457,6 @@ module VoyagerHelpers
         info
       end
 
-      def get_record_ids_from_barcode(barcode, conn=nil)
-        record_ids = []
-        connection(conn) do |c|
-          cursor = c.parse(VoyagerHelpers::Queries.record_ids_for_barcode)
-          cursor.bind_param(':barcode', barcode)
-          cursor.exec()
-          while row = cursor.fetch
-            record_ids << row
-          end
-          cursor.close()
-        end
-        record_ids
-      end
-
       def valid_ascii(string)
         string.force_encoding("ascii").encode("UTF-8", {:invalid => :replace, :replace => ''}) unless string.nil?
       end
@@ -592,6 +575,20 @@ module VoyagerHelpers
         end
       end
 
+      def get_record_ids_from_barcode(barcode, conn=nil)
+        record_ids = []
+        connection(conn) do |c|
+          cursor = c.parse(VoyagerHelpers::Queries.record_ids_for_barcode)
+          cursor.bind_param(':barcode', barcode)
+          cursor.exec()
+          while row = cursor.fetch
+            record_ids << row
+          end
+          cursor.close()
+        end
+        record_ids
+      end
+
       def merge_holding_item_into_bib(bib, holding, item, conn=nil)
         holdings = [holding]
         record_hash = merge_holdings_info(bib, holdings, conn)
@@ -617,6 +614,17 @@ module VoyagerHelpers
           record_hash['fields'] << {"876"=>{"ind1"=>"0", "ind2"=>"0", "subfields"=>[{"0"=>holding_id.to_s}, {"a"=>item[:id].to_s}, {"j"=>item[:status]}, {"p"=>item[:barcode].to_s}, {"t"=>item[:copy_number].to_s}]}}
         end
         MARC::Record.new_from_hash(record_hash)
+      end
+
+      def single_record_from_barcode (bib_id, mfhd_id, item_id, conn=nil)
+        merged_record = nil
+        connection(conn) do |c|
+          bib = get_bib_record(bib_id, c, {:holdings=>false})
+          holding = get_holding_record(mfhd_id, c)
+          item = get_item(item_id, c)
+          merged_record = merge_holding_item_into_bib(bib, holding, item, c)
+        end
+        merged_record
       end
 
       def recap_item_info(location)
