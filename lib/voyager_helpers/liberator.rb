@@ -30,16 +30,26 @@ module VoyagerHelpers
       end
 
       def get_bib_update_date(bib_id, conn=nil)
-        query = VoyagerHelpers::Queries.bib_update_date(bib_id)
+        query = VoyagerHelpers::Queries.bib_update_date
         connection(conn) do |c|
-          c.exec(query) { |date| return date.first }
+          cursor = c.parse(query)
+          cursor.bind_param(':bib_id', bib_id)
+          cursor.exec()
+          date = cursor.fetch
+          cursor.close()
+          date
         end
       end
 
       def get_mfhd_update_date(mfhd_id, conn=nil)
-        query = VoyagerHelpers::Queries.mfhd_update_date(mfhd_id)
+        query = VoyagerHelpers::Queries.mfhd_update_date
         connection(conn) do |c|
-          c.exec(query) { |date| return date.first }
+          cursor = c.parse(query)
+          cursor.bind_param(':mfhd_id', mfhd_id)
+          cursor.exec()
+          date = cursor.fetch
+          cursor.close()
+          date
         end
       end
 
@@ -271,9 +281,9 @@ module VoyagerHelpers
       # @return [<Hash>]
       def get_patron_info(patron_id)
         id_type = determine_id_type(patron_id)
-        query = VoyagerHelpers::Queries.patron_info(patron_id, id_type)
+        query = VoyagerHelpers::Queries.patron_info(id_type)
         connection do |c|
-          exec_get_info_for_patron(query, c)
+          exec_get_info_for_patron(query, patron_id, id_type, c)
         end
       end
 
@@ -281,9 +291,9 @@ module VoyagerHelpers
       # @return [Array<Hash>] Patron Statistical Categories with one key: :stat_code.
       def get_patron_stat_codes(patron_id)
         id_type = determine_id_type(patron_id)
-        query = VoyagerHelpers::Queries.patron_stat_codes(patron_id, id_type)
+        query = VoyagerHelpers::Queries.patron_stat_codes(id_type)
         connection do |c|
-          exec_get_patron_stat_codes(query, c)
+          exec_get_patron_stat_codes(query, patron_id, c)
         end
       end
 
@@ -402,61 +412,74 @@ module VoyagerHelpers
       # @param mfhd_id [Fixnum] A mfhd record id
       # @return [Array<Hash>] An Array of Hashes with three keys: :date, :li_status, :po_status.
       def get_orders(mfhd_id, conn=nil)
-        mfhd_id = Array(mfhd_id)
         statuses = []
-        query = VoyagerHelpers::Queries.orders(mfhd_id)
+        query = VoyagerHelpers::Queries.orders
         connection(conn) do |c|
-          c.exec(query, *mfhd_id) do |po_status, order_status, date|
-            date = date.to_datetime unless date.nil?
-            statuses << { date: date,
-                          li_status: order_status,
-                          po_status: po_status }
+          cursor = c.parse(query)
+          cursor.bind_param(':mfhd_id', mfhd_id)
+          cursor.exec()
+          while row = cursor.fetch
+            date = row[2].to_datetime unless date.nil?
+            statuses << { po_status: row.shift,
+                        li_status: row.shift,
+                        date: date }
           end
+          cursor.close()
         end
         statuses
       end
 
       def mfhd_is_suppressed?(mfhd_id, conn=nil)
-        query = VoyagerHelpers::Queries.mfhd_suppressed(mfhd_id)
+        query = VoyagerHelpers::Queries.mfhd_suppressed
         connection(conn) do |c|
-          exec_mfhd_is_suppressed?(query, c)
+          exec_mfhd_is_suppressed?(query, mfhd_id, c)
         end
       end
 
-      def exec_mfhd_is_suppressed?(query, conn)
+      def exec_mfhd_is_suppressed?(query, mfhd_id, conn)
         suppressed = false
         connection(conn) do |c|
-          suppressed = c.select_one(query) == ['Y']
+          cursor = c.parse(query)
+          cursor.bind_param(':mfhd_id', mfhd_id)
+          cursor.exec()
+          suppressed = cursor.fetch == ['Y']
+          cursor.close()
         end
         suppressed
       end
 
       def get_info_for_item(item_id, conn=nil, full=true)
-        query = full == true ? VoyagerHelpers::Queries.full_item_info(item_id) : VoyagerHelpers::Queries.brief_item_info(item_id)
+        query = full == true ? VoyagerHelpers::Queries.full_item_info : VoyagerHelpers::Queries.brief_item_info
         connection(conn) do |c|
-          exec_get_info_for_item(query, c, full)
+          exec_get_info_for_item(query, item_id, c, full)
         end
       end
 
-      def exec_get_info_for_item(query, conn, full)
+      def exec_get_info_for_item(query, item_id, conn, full)
         info = {}
-        conn.exec(query) do |a|
-          info[:id] = a.shift
-          info[:status] = a.shift
-          info[:on_reserve] = a.shift
-          info[:copy_number] = a.shift
-          info[:item_sequence_number] = a.shift
-          info[:temp_location] = a.shift
-          if full == true
-            info[:perm_location] = a.shift
-            enum = a.shift
-            info[:enum] = valid_ascii(enum)
-            chron = a.shift
-            info[:chron] = valid_ascii(chron)
-            date = a.shift
-            info[:status_date] = date.to_datetime unless date.nil?
-            info[:barcode] = a.shift
-          end
+        row = []
+        connection(conn) do |c|
+          cursor = c.parse(query)
+          cursor.bind_param(':item_id', item_id)
+          cursor.exec()
+          row = cursor.fetch
+          cursor.close()
+        end
+        info[:id] = row.shift
+        info[:status] = row.shift
+        info[:on_reserve] = row.shift
+        info[:copy_number] = row.shift
+        info[:item_sequence_number] = row.shift
+        info[:temp_location] = row.shift
+        if full == true
+          info[:perm_location] = row.shift
+          enum = row.shift
+          info[:enum] = valid_ascii(enum)
+          chron = row.shift
+          info[:chron] = valid_ascii(chron)
+          date = row.shift
+          info[:status_date] = date.to_datetime unless date.nil?
+          info[:barcode] = row.shift
         end
         info
       end
@@ -469,31 +492,42 @@ module VoyagerHelpers
         string.codepoints.map{|c| c.chr(Encoding::UTF_8)}.join
       end
 
-      def exec_get_info_for_patron(query, conn)
+      def exec_get_info_for_patron(query, patron_id, id_type, conn)
         info = {}
-        conn.exec(query) do |a|
-          info[:netid] = a.shift
-          f_name = a.shift
+        connection(conn) do |c|
+          cursor = c.parse(query)
+          cursor.bind_param(':id', patron_id)
+          cursor.exec()
+          row = cursor.fetch
+          info[:netid] = row.shift
+          f_name = row.shift
           info[:first_name] = valid_codepoints(f_name)
-          l_name = a.shift
+          l_name = row.shift
           info[:last_name] = valid_codepoints(l_name)
-          info[:barcode] = a.shift
-          info[:barcode_status] = a.shift
-          info[:barcode_status_date] = a.shift
-          info[:university_id] = a.shift
-          patron_group = a.shift
+          info[:barcode] = row.shift
+          info[:barcode_status] = row.shift
+          info[:barcode_status_date] = row.shift
+          info[:university_id] = row.shift
+          patron_group = row.shift
           info[:patron_group] = patron_group == 3 ? 'staff' : patron_group
-          info[:purge_date] = a.shift
-          info[:expire_date] = a.shift
-          info[:patron_id] = a.shift
+          info[:purge_date] = row.shift
+          info[:expire_date] = row.shift
+          info[:patron_id] = row.shift
+          cursor.close()
         end
         info
       end
 
-      def exec_get_patron_stat_codes(query, conn)
+      def exec_get_patron_stat_codes(query, patron_id, conn)
         stat_codes = []
-        conn.exec(query) do |stat_code|
-          stat_codes << { stat_code: stat_code }
+        connection(conn) do |c|
+          cursor = c.parse(query)
+          cursor.bind_param(':id', patron_id)
+          cursor.exec()
+          while row = cursor.fetch
+            stat_codes << { stat_code: row.first }
+          end
+          cursor.close()
         end
         stat_codes
       end
@@ -508,23 +542,35 @@ module VoyagerHelpers
       end
 
       def get_item_ids_for_holding(mfhd_id, conn)
-        query = VoyagerHelpers::Queries.mfhd_item_ids(mfhd_id)
+        query = VoyagerHelpers::Queries.mfhd_item_ids
         connection(conn) do |c|
-          exec_get_item_ids_for_holding(query, c)
+          exec_get_item_ids_for_holding(query, mfhd_id, c)
         end
       end
 
-      def exec_get_item_ids_for_holding(query, conn)
+      def exec_get_item_ids_for_holding(query, mfhd_id, conn)
         item_ids = []
-        conn.exec(query) { |item_id| item_ids << item_id }
+        connection(conn) do |c|
+          cursor = c.parse(query)
+          cursor.bind_param(':mfhd_id', mfhd_id)
+          cursor.exec()
+          while row = cursor.fetch
+            item_ids << row.first
+          end
+          cursor.close()
+        end
         item_ids.flatten
       end
 
       def bib_is_suppressed?(bib_id, conn=nil)
         suppressed = false
-        query = VoyagerHelpers::Queries.bib_suppressed(bib_id)
+        query = VoyagerHelpers::Queries.bib_suppressed
         connection(conn) do |c|
-          suppressed = c.select_one(query) == ['Y']
+          cursor = c.parse(query)
+          cursor.bind_param(':bib_id', bib_id)
+          cursor.exec()
+          suppressed = cursor.fetch == ['Y']
+          cursor.close()
         end
         suppressed
       end
@@ -695,16 +741,26 @@ module VoyagerHelpers
       end
 
       def get_bib_create_date(bib_id, conn=nil)
-        query = VoyagerHelpers::Queries.bib_create_date(bib_id)
+        query = VoyagerHelpers::Queries.bib_create_date
         connection(conn) do |c|
-          c.exec(query) { |date| return date.first }
+          cursor = c.parse(query)
+          cursor.bind_param(':bib_id', bib_id)
+          cursor.exec()
+          date = cursor.fetch.first
+          cursor.close()
+          date
         end
       end
 
       def get_item_create_date(item_id, conn=nil)
-        query = VoyagerHelpers::Queries.item_create_date(item_id)
+        query = VoyagerHelpers::Queries.item_create_date
         connection(conn) do |c|
-          c.exec(query) { |date| return date.first }
+          cursor = c.parse(query)
+          cursor.bind_param(':item_id', item_id)
+          cursor.exec()
+          date = cursor.fetch.first
+          cursor.close()
+          date
         end
       end
 
@@ -720,34 +776,46 @@ module VoyagerHelpers
       end
 
       def get_bib_segments(bib_id, conn=nil)
-        query = VoyagerHelpers::Queries.bib(bib_id)
-        segments(query, conn)
+        query = VoyagerHelpers::Queries.bib
+        segments(query, bib_id, conn)
       end
 
       def get_mfhd_segments(mfhd_id, conn=nil)
-        query = VoyagerHelpers::Queries.mfhd(mfhd_id)
-        segments(query, conn)
+        query = VoyagerHelpers::Queries.mfhd
+        segments(query, mfhd_id, conn)
       end
 
-      def segments(query, conn=nil)
+      def segments(query, id, conn=nil)
         segments = []
         connection(conn) do |c|
-          c.exec(query) { |s| segments << s }
+          cursor = c.parse(query)
+          cursor.bind_param(':id', id)
+          cursor.exec()
+          while row = cursor.fetch
+            segments << row.first
+          end
+          cursor.close()
         end
         segments
       end
 
       def get_bib_mfhd_ids(bib_id, conn=nil)
-        query = VoyagerHelpers::Queries.mfhd_ids(bib_id)
+        query = VoyagerHelpers::Queries.mfhd_ids
         connection(conn) do |c|
-          exec_get_bib_mfhd_ids(query, c)
+          exec_get_bib_mfhd_ids(query, bib_id, c)
         end
       end
 
-      def exec_get_bib_mfhd_ids(query, conn)
+      def exec_get_bib_mfhd_ids(query, bib_id, conn)
         ids = []
         connection(conn) do |c|
-          c.exec(query) { |id| ids << id.first }
+          cursor = c.parse(query)
+          cursor.bind_param(':bib_id', bib_id)
+          cursor.exec()
+          while row = cursor.fetch
+            ids << row.first
+          end
+          cursor.close()
         end
         ids
       end
