@@ -64,10 +64,10 @@ module VoyagerHelpers
         )
       end
 
-      def bib_suppressed(bib_id)
+      def bib_suppressed
         %Q(
         SELECT suppress_in_opac FROM bib_master
-        WHERE bib_id=#{bib_id}
+        WHERE bib_id=:bib_id
         )
       end
 
@@ -80,7 +80,7 @@ module VoyagerHelpers
         )
       end
 
-      def full_item_info(item_id)
+      def full_item_info
         %Q(
         SELECT
           item.item_id,
@@ -107,13 +107,13 @@ module VoyagerHelpers
             ON mfhd_item.item_id = item.item_id
           LEFT JOIN item_barcode
             ON item_barcode.item_id = item.item_id
-        WHERE item.item_id=#{item_id} AND
+        WHERE item.item_id=:item_id AND
           item_status.item_status NOT IN ('5', '6', '16', '19', '20', '21', '23', '24') AND
           (item_barcode.barcode_status = 1 OR item_barcode.barcode_status IS NULL)
         )
       end
 
-      def brief_item_info(item_id)
+      def brief_item_info
         %Q(
         SELECT
           item.item_id,
@@ -129,22 +129,21 @@ module VoyagerHelpers
             ON item_status.item_id = item.item_id
           INNER JOIN item_status_type
             ON item_status_type.item_status_type = item_status.item_status
-        WHERE item.item_id=#{item_id} AND
+        WHERE item.item_id=:item_id AND
           item_status.item_status NOT IN ('5', '6', '16', '19', '20', '21', '23', '24')
         )
       end
 
-      def item_create_date(item_id)
+      def item_create_date
         %Q(
         SELECT
           create_date
         FROM item
-        WHERE item_id=#{item_id}
+        WHERE item_id=:item_id
         )
       end
 
-      def orders(mfhd_id)
-        mfhd_id = OCI8::in_cond(:mfhd_id, mfhd_id)
+      def orders
         %Q(
         SELECT
           purchase_order.po_status,
@@ -156,7 +155,7 @@ module VoyagerHelpers
           JOIN purchase_order
             ON line_item.po_id = purchase_order.po_id
         WHERE
-          line_item_copy_status.mfhd_id IN (#{mfhd_id.names})
+          line_item_copy_status.mfhd_id = :mfhd_id
         ORDER BY
           line_item_copy_status.status_date DESC
         )
@@ -169,16 +168,16 @@ module VoyagerHelpers
         )
       end
 
-      def bib(bib_id)
+      def bib
         %Q(
         SELECT record_segment
         FROM bib_data
-        WHERE bib_id=#{bib_id}
+        WHERE bib_id=:id
         ORDER BY seqnum
         )
       end
 
-      def bib_id_for_holding_id(mfhd_id)
+      def bib_id_for_holding_id
         %Q(
         SELECT
           bib_master.bib_id,
@@ -186,7 +185,7 @@ module VoyagerHelpers
           bib_master.update_date
         FROM bib_master
           INNER JOIN bib_mfhd
-            ON bib_mfhd.mfhd_id=#{mfhd_id}
+            ON bib_mfhd.mfhd_id=:id
         WHERE bib_master.bib_id = bib_mfhd.bib_id
         )
       end
@@ -202,30 +201,30 @@ module VoyagerHelpers
         )
       end
 
-      def bib_create_date(bib_id)
+      def bib_create_date
         %Q(
         SELECT
           create_date
         FROM bib_master
-        WHERE bib_master.bib_id=#{bib_id}
+        WHERE bib_master.bib_id=:bib_id
         )
       end
 
-      def bib_update_date(bib_id)
+      def bib_update_date
         %Q(
         SELECT
           update_date
         FROM bib_master
-        WHERE bib_master.bib_id=#{bib_id}
+        WHERE bib_master.bib_id=:bib_id
         )
       end
 
-      def mfhd_update_date(mfhd_id)
+      def mfhd_update_date
         %Q(
         SELECT
           update_date
         FROM mfhd_master
-        WHERE mfhd_master.mfhd_id=#{mfhd_id}
+        WHERE mfhd_master.mfhd_id=:mfhd_id
         )
       end
 
@@ -243,19 +242,19 @@ module VoyagerHelpers
         )
       end
 
-      def mfhd(mfhd_id)
+      def mfhd
         %Q(
         SELECT record_segment FROM mfhd_data
-        WHERE mfhd_id=#{mfhd_id}
+        WHERE mfhd_id=:id
         ORDER BY seqnum
         )
       end
 
-      def mfhd_suppressed(mfhd_id)
+      def mfhd_suppressed
         %Q(
           SELECT suppress_in_opac
           FROM mfhd_master
-          WHERE mfhd_id=#{mfhd_id}
+          WHERE mfhd_id=:mfhd_id
         )
       end
 
@@ -282,22 +281,22 @@ module VoyagerHelpers
         )
       end
 
-      def mfhd_ids(bib_id)
+      def mfhd_ids
         %Q(
         SELECT mfhd_id
         FROM bib_mfhd
-        WHERE bib_id=#{bib_id}
+        WHERE bib_id=:bib_id
         )
       end
 
-      def mfhd_item_ids(mfhd_id)
+      def mfhd_item_ids
         %Q(
         SELECT item_id FROM mfhd_item
-        WHERE mfhd_id=#{mfhd_id}
+        WHERE mfhd_id=:mfhd_id
         )
       end
 
-      def patron_info(id, id_field)
+      def patron_info(id_field)
         %Q(
           SELECT
             patron.title,
@@ -313,13 +312,13 @@ module VoyagerHelpers
             patron.patron_id
           FROM patron, patron_barcode
           WHERE
-            #{id_field}='#{id}'
+            #{id_field}=:id
             AND patron.patron_id=patron_barcode.patron_id
             AND patron_barcode.barcode_status=1
           )
       end
 
-      def patron_stat_codes(id, id_field)
+      def patron_stat_codes(id_field)
         %Q(
           SELECT
             patron_stat_code.patron_stat_desc
@@ -331,7 +330,7 @@ module VoyagerHelpers
             JOIN patron_barcode
               ON patron.patron_id = patron_barcode.patron_id
           WHERE
-            #{id_field}='#{id}'
+            #{id_field}=:id
             AND patron_barcode.barcode_status = 1
         )
       end
