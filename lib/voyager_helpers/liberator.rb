@@ -609,9 +609,34 @@ module VoyagerHelpers
             h[key]['subfields'].insert(2, {"h"=>combined_call_no})
             record_hash['fields'] << h
           end
-          record_hash['fields'] << {"876"=>{"ind1"=>"0", "ind2"=>"0", "subfields"=>[{"0"=>holding_id.to_s}, {"a"=>item[:id].to_s}, {"h"=>recap_item_hash[:recap_use_restriction]}, {"j"=>item[:status]}, {"p"=>item[:barcode].to_s}, {"t"=>item[:copy_number].to_s}, {"x"=>recap_item_hash[:group_designation]}, {"z"=>recap_item_hash[:customer_code]}]}}
+          record_hash['fields'] << {"876"=>
+            {"ind1"=>"0", "ind2"=>"0",
+            "subfields"=>
+              [
+                {"0"=>holding_id.to_s},
+                {"a"=>item[:id].to_s},
+                {"h"=>recap_item_hash[:recap_use_restriction]},
+                {"j"=>item[:status]},
+                {"p"=>item[:barcode].to_s},
+                {"t"=>item[:copy_number].to_s},
+                {"x"=>recap_item_hash[:group_designation]},
+                {"z"=>recap_item_hash[:customer_code]}
+              ]
+            }
+          }
         else
-          record_hash['fields'] << {"876"=>{"ind1"=>"0", "ind2"=>"0", "subfields"=>[{"0"=>holding_id.to_s}, {"a"=>item[:id].to_s}, {"j"=>item[:status]}, {"p"=>item[:barcode].to_s}, {"t"=>item[:copy_number].to_s}]}}
+          record_hash['fields'] << {"876"=>
+            {"ind1"=>"0", "ind2"=>"0",
+            "subfields"=>
+              [
+                {"0"=>holding_id.to_s},
+                {"a"=>item[:id].to_s},
+                {"j"=>item[:status]},
+                {"p"=>item[:barcode].to_s},
+                {"t"=>item[:copy_number].to_s}
+              ]
+            }
+          }
         end
         MARC::Record.new_from_hash(record_hash)
       end
@@ -635,7 +660,7 @@ module VoyagerHelpers
         elsif location =~ /^rcp(?!x[a-z]).*$/
           customer_code = location.gsub(/^rcp([a-z]{2})/, '\1').upcase
         end
-        info_hash[:customer_code] = customer_code        
+        info_hash[:customer_code] = customer_code
         recap_use_restriction = ''
         group_designation = ''
         case location
@@ -654,7 +679,7 @@ module VoyagerHelpers
         info_hash[:recap_use_restriction] = recap_use_restriction
         info_hash
       end
-      
+
       def electronic_resource?(holdings, conn=nil)
         holdings.each do |mfhd|
           mfhd_hash = mfhd.to_hash
