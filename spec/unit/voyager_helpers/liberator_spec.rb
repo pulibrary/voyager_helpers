@@ -1,4 +1,11 @@
 require 'spec_helper'
+require 'json'
+
+def json_stub(filename)
+  record = fixture("/#{filename}.json")
+  record = JSON.parse(record.read)
+  record = MARC::Record.new_from_hash(record)
+end
 
 describe VoyagerHelpers::Liberator do
   let(:placeholder_id) { 12345 }
@@ -218,4 +225,128 @@ describe VoyagerHelpers::Liberator do
     end
   end
 
+  describe 'holding and item merge related methods' do
+    let(:norm_bib_id) { '7991903' }
+    let(:norm_bib_record) { json_stub("bib_#{norm_bib_id}") }
+    let(:norm_mfhd_id) { '7770428' }
+    let(:norm_mfhd_record) { json_stub("mfhd_#{norm_mfhd_id}") }
+    describe '#merge_holdings_info' do
+      let(:cat_date) { "2014-02-07 09:34:47 -0500" }
+      it 'merges mfhd information into a bib record and adds catalog date' do
+        allow(described_class).to receive(:get_catalog_date).and_return(cat_date)
+        record_hash = described_class.send(:merge_holdings_info, norm_bib_record, [norm_mfhd_record])
+        record_marc = MARC::Record.new_from_hash(record_hash)
+        expect(record_marc['852']['0']).to eq norm_mfhd_id
+        expect(record_marc['852']['h']).to eq 'PS3561.R2873'
+        expect(record_marc['852']['i']).to eq 'A68 2013'
+        expect(record_marc['959']['a']).to eq cat_date
+      end
+    end
+    describe '#merge_holding_item_into_bib' do
+      let(:norm_merged_mfhd_record) { json_stub("merged_mfhd_#{norm_bib_id}") }
+      let(:norm_barcode) { '32101089814220' }
+      let(:norm_item_id) { 6800460 }
+      let(:norm_item_info)  {{
+                              :id=>norm_item_id,
+                              :status=>"Not Charged",
+                              :on_reserve=>"N",
+                              :copy_number=>1,
+                              :item_sequence_number=>1,
+                              :temp_location=>nil,
+                              :perm_location=>"f",
+                              :enum=>nil,
+                              :chron=>nil,
+                              :status_date=>DateTime.new(2016,10,19,20,21,25,'-5'),
+                              :barcode=>norm_barcode
+                            }}
+      let(:recap_bib_id) { '159315' }
+      let(:recap_bib_record) { json_stub("bib_#{recap_bib_id}") }
+      let(:recap_mfhd_id) { '176124' }
+      let(:recap_mfhd_record) { json_stub("mfhd_#{recap_mfhd_id}") }
+      let(:recap_merged_mfhd_record) { json_stub("merged_mfhd_#{recap_bib_id}") }
+      let(:recap_barcode) { '32101063503237' }
+      let(:recap_item_id) { 171815 }
+      let(:recap_item_info)  {{
+                              :id=>recap_item_id,
+                              :status=>"Not Charged",
+                              :on_reserve=>"N",
+                              :copy_number=>1,
+                              :item_sequence_number=>1,
+                              :temp_location=>nil,
+                              :perm_location=>"rcppa",
+                              :enum=>nil,
+                              :chron=>nil,
+                              :status_date=>DateTime.new(2011,10,19,20,21,25,'-5'),
+                              :barcode=>recap_barcode
+                            }}
+      context 'non-ReCAP item' do
+        it 'retains 852$h and $i and adds item info to 876 without ReCAP-specific fields' do
+          allow(described_class).to receive(:merge_holdings_info).and_return(norm_merged_mfhd_record.to_hash)
+          full_record = described_class.send(:merge_holding_item_into_bib, norm_bib_record, norm_mfhd_record, norm_item_info)
+          expect(full_record['852']['i']).to eq 'A68 2013'
+          expect(full_record['876']['0']).to eq norm_mfhd_id
+          expect(full_record['876']['p']).to eq norm_barcode
+          expect(full_record['876']['h']).to be_nil
+        end
+      end
+      context 'ReCAP item' do
+        it 'merges 852$h and $i into 852 $h and adds ReCAP-specific info to 876' do
+          allow(described_class).to receive(:merge_holdings_info).and_return(recap_merged_mfhd_record.to_hash)
+          full_record = described_class.send(:merge_holding_item_into_bib, recap_bib_record, recap_mfhd_record, recap_item_info)
+          expect(full_record['852']['h']).to eq 'BM899.61 .A39  M8'
+          expect(full_record['876']['0']).to eq recap_mfhd_id
+          expect(full_record['876']['p']).to eq recap_barcode
+          expect(full_record['876']['x']).to eq 'Shared'
+        end
+      end
+    end
+  end
+
+  describe '#recap_item_info' do
+    let(:shared) { 'rcppa' }
+    let(:private_no_restriction) { 'rcpjq' }
+    let(:private_in_library) { 'rcppj' }
+    let(:private_supervised) { 'rcppb' }
+    let(:invalid_recap) { 'rcppv' }
+    context 'shared location, no use restriction' do
+      it 'returns customer code, shared group designation, and blank use restriction' do
+        info_hash = described_class.send(:recap_item_info, shared)
+        expect(info_hash[:customer_code]).to eq 'PA'
+        expect(info_hash[:recap_use_restriction]).to eq ''
+        expect(info_hash[:group_designation]).to eq 'Shared'
+      end
+    end
+    context 'private location, no use restriction' do
+      it 'returns customer code, shared group designation, and blank use restriction' do
+        info_hash = described_class.send(:recap_item_info, private_no_restriction)
+        expect(info_hash[:customer_code]).to eq 'JQ'
+        expect(info_hash[:recap_use_restriction]).to eq ''
+        expect(info_hash[:group_designation]).to eq 'Private'
+      end
+    end
+    context 'private location, in library use' do
+      it 'returns customer code, shared group designation, and use restriction' do
+        info_hash = described_class.send(:recap_item_info, private_in_library)
+        expect(info_hash[:customer_code]).to eq 'PJ'
+        expect(info_hash[:recap_use_restriction]).to eq 'In Library Use'
+        expect(info_hash[:group_designation]).to eq 'Private'
+      end
+    end
+    context 'private location, supervised use' do
+      it 'returns customer code, shared group designation, and blank use restriction' do
+        info_hash = described_class.send(:recap_item_info, private_supervised)
+        expect(info_hash[:customer_code]).to eq 'PB'
+        expect(info_hash[:recap_use_restriction]).to eq 'Supervised Use'
+        expect(info_hash[:group_designation]).to eq 'Private'
+      end
+    end
+    context 'invalid ReCAP location' do
+      it 'returns customer code, blank group designation, and blank use restriction' do
+        info_hash = described_class.send(:recap_item_info, invalid_recap)
+        expect(info_hash[:customer_code]).to eq 'PV'
+        expect(info_hash[:recap_use_restriction]).to eq ''
+        expect(info_hash[:group_designation]).to eq ''
+      end
+    end
+  end
 end

@@ -309,6 +309,20 @@ module VoyagerHelpers
         status
       end
 
+      # @param barcode [String] An item barcode
+      # @return [Array<MARC::Record>]
+      def get_records_from_barcode(barcode)
+        records = []
+        connection do |c|
+          record_ids = get_record_ids_from_barcode(barcode, c)
+          record_ids.each do |row|
+            bib_id, mfhd_id, item_id = row
+            records << single_record_from_barcode(bib_id, mfhd_id, item_id, c)
+          end
+        end
+        records
+      end
+
       private
 
       def on_order?(po_status, li_status)
@@ -532,8 +546,7 @@ module VoyagerHelpers
         end
       end
 
-      # Removes bib 852s and 86Xs, adds 852s, 856s, and 86Xs from holdings, adds 959 catalog date
-      def merge_holdings_into_bib(bib, holdings, conn=nil)
+      def merge_holdings_info(bib, holdings, conn=nil)
         record_hash = bib.to_hash
         record_hash['fields'].delete_if { |f| ['852', '866', '867', '868'].any? { |key| f.has_key?(key) } }
         unless holdings.empty?
@@ -549,6 +562,12 @@ module VoyagerHelpers
             record_hash['fields'] << {"959"=>{"ind1"=>" ", "ind2"=>" ", "subfields"=>[{"a"=>catalog_date.to_s}]}}
           end
         end
+        record_hash
+      end
+
+      # Removes bib 852s and 86Xs, adds 852s, 856s, and 86Xs from holdings, adds 959 catalog date
+      def merge_holdings_into_bib(bib, holdings, conn=nil)
+        record_hash = merge_holdings_info(bib, holdings, conn)
         MARC::Record.new_from_hash(record_hash)
       end
 
@@ -558,6 +577,111 @@ module VoyagerHelpers
         else
           get_earliest_item_date(holdings, conn) # returns nil if no items
         end
+      end
+
+      def get_record_ids_from_barcode(barcode, conn=nil)
+        record_ids = []
+        connection(conn) do |c|
+          cursor = c.parse(VoyagerHelpers::Queries.record_ids_for_barcode)
+          cursor.bind_param(':barcode', barcode)
+          cursor.exec()
+          while row = cursor.fetch
+            record_ids << row
+          end
+          cursor.close()
+        end
+        record_ids
+      end
+
+      def merge_holding_item_into_bib(bib, holding, item, conn=nil)
+        holdings = [holding]
+        record_hash = merge_holdings_info(bib, holdings, conn)
+        record_hash['fields'].delete_if { |f| ['876'].any? { |key| f.has_key?(key) } }
+        holding_id = holding['001'].value
+        holding_location = holding['852']['b']
+        combined_call_no = ''
+        if holding['852']['i']
+          combined_call_no = "#{holding['852']['h']} #{holding['852']['i']}"
+        end
+        if holding_location =~ /^rcp[a-z]{2}$/
+          recap_item_hash = recap_item_info(holding_location)
+          record_hash['fields'].delete_if { |f| ['852'].any? { |key| f.has_key?(key) } }
+          holding.to_hash['fields'].select { |h| ['852'].any? { |key| h.has_key?(key) } }.each do |h|
+            key, _value = h.first
+            h[key]['subfields'].delete_if { |s| ['h', 'i'].any? { |key| s.has_key?(key) } }
+            h[key]['subfields'].unshift({"0"=>holding_id})
+            h[key]['subfields'].insert(2, {"h"=>combined_call_no})
+            record_hash['fields'] << h
+          end
+          record_hash['fields'] << {"876"=>
+            {"ind1"=>"0", "ind2"=>"0",
+            "subfields"=>
+              [
+                {"0"=>holding_id.to_s},
+                {"a"=>item[:id].to_s},
+                {"h"=>recap_item_hash[:recap_use_restriction]},
+                {"j"=>item[:status]},
+                {"p"=>item[:barcode].to_s},
+                {"t"=>item[:copy_number].to_s},
+                {"x"=>recap_item_hash[:group_designation]},
+                {"z"=>recap_item_hash[:customer_code]}
+              ]
+            }
+          }
+        else
+          record_hash['fields'] << {"876"=>
+            {"ind1"=>"0", "ind2"=>"0",
+            "subfields"=>
+              [
+                {"0"=>holding_id.to_s},
+                {"a"=>item[:id].to_s},
+                {"j"=>item[:status]},
+                {"p"=>item[:barcode].to_s},
+                {"t"=>item[:copy_number].to_s}
+              ]
+            }
+          }
+        end
+        MARC::Record.new_from_hash(record_hash)
+      end
+
+      def single_record_from_barcode (bib_id, mfhd_id, item_id, conn=nil)
+        merged_record = nil
+        connection(conn) do |c|
+          bib = get_bib_record(bib_id, c, {:holdings=>false})
+          holding = get_holding_record(mfhd_id, c)
+          item = get_item(item_id, c)
+          merged_record = merge_holding_item_into_bib(bib, holding, item, c)
+        end
+        merged_record
+      end
+
+      def recap_item_info(location)
+        info_hash = {}
+        customer_code = ''
+        if location =~ /^rcpx[a-z]$/
+          customer_code = 'PG'
+        elsif location =~ /^rcp(?!x[a-z]).*$/
+          customer_code = location.gsub(/^rcp([a-z]{2})/, '\1').upcase
+        end
+        info_hash[:customer_code] = customer_code
+        recap_use_restriction = ''
+        group_designation = ''
+        case location
+          when 'rcppa', 'rcpgp', 'rcpqk', 'rcppf'
+            group_designation = 'Shared'
+          when 'rcppj', 'rcppk', 'rcppl', 'rcppm', 'rcppn', 'rcppt'
+            recap_use_restriction = 'In Library Use'
+            group_designation = 'Private'
+          when 'rcppb', 'rcpph', 'rcpps', 'rcppw', 'rcppz', 'rcpxc', 'rcpxg', 'rcpxm', 'rcpxn', 'rcpxp', 'rcpxr', 'rcpxx'
+            recap_use_restriction = 'Supervised Use'
+            group_designation = 'Private'
+          when 'rcpjq', 'rcppe', 'rcppg', 'rcpph', 'rcppq', 'rcpqb', 'rcpql', 'rcpqv', 'rcpqx'
+            group_designation = 'Private'
+        end
+        info_hash[:group_designation] = group_designation
+        info_hash[:recap_use_restriction] = recap_use_restriction
+        info_hash
       end
 
       def electronic_resource?(holdings, conn=nil)
