@@ -87,6 +87,7 @@ describe VoyagerHelpers::Liberator do
     let(:item_3_id) { 36738 }
     let(:item_barcode) { '32101005535917' }
     let(:not_charged) { 'Not Charged' }
+    let(:charged) { 'Charged' }
     let(:single_volume_2_copy) { [{
                                 id: item_id,
                                 status: not_charged,
@@ -158,7 +159,20 @@ describe VoyagerHelpers::Liberator do
                                 barcode: item_barcode
     }] }
     let(:three_items) { [enum_with_chron.first, reserve_item.first, limited_multivolume.first] }
-
+    let(:charged_item) { [{
+                                id: item_id,
+                                status: charged,
+                                on_reserve: 'N',
+                                temp_location: nil,
+                                perm_location: perm,
+                                enum: nil,
+                                chron: nil,
+                                copy_number: 1,
+                                item_sequence_number: 1,
+                                status_date: '2014-05-27T06:00:19.000-05:00',
+                                barcode: item_barcode,
+                                due_date: '2014-09-27T23:59:00.000-0500'
+    }] }
     it 'includes item id and barcode in response' do
       allow(described_class).to receive(:get_items_for_holding).and_return(single_volume_2_copy)
       availability = described_class.get_full_mfhd_availability(placeholder_id).first
@@ -210,6 +224,11 @@ describe VoyagerHelpers::Liberator do
       availability = described_class.get_full_mfhd_availability(placeholder_id)
       item_ids = availability.map { |i| i[:id] }
       expect(item_ids).to eq [item_2_id, item_id, item_3_id]
+    end
+    it 'displays an item due date if charged' do
+      allow(described_class).to receive(:get_items_for_holding).and_return(charged_item)
+      availability = described_class.get_full_mfhd_availability(placeholder_id).first
+      expect(availability[:due_date]).to eq '2014-09-27T23:59:00.000-0500'
     end
   end
 

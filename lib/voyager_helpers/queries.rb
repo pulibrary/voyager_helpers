@@ -113,6 +113,15 @@ module VoyagerHelpers
         )
       end
 
+      def item_due_date
+        %Q(
+          SELECT
+            current_due_date
+          FROM circ_transactions
+          WHERE item_id = :item_id
+        )
+      end
+
       def brief_item_info
         %Q(
         SELECT
