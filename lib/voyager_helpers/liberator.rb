@@ -283,7 +283,7 @@ module VoyagerHelpers
         id_type = determine_id_type(patron_id)
         query = VoyagerHelpers::Queries.patron_info(id_type)
         connection do |c|
-          exec_get_info_for_patron(query, patron_id, id_type, c)
+          exec_get_info_for_patron(query, patron_id, c)
         end
       end
 
@@ -492,7 +492,7 @@ module VoyagerHelpers
         string.codepoints.map{|c| c.chr(Encoding::UTF_8)}.join
       end
 
-      def exec_get_info_for_patron(query, patron_id, id_type, conn)
+      def exec_get_info_for_patron(query, patron_id, conn)
         info = {}
         connection(conn) do |c|
           cursor = c.parse(query)
@@ -514,9 +514,23 @@ module VoyagerHelpers
           info[:expire_date] = row.shift
           info[:patron_id] = row.shift
           cursor.close()
+          info[:active_email] = get_patron_email(info[:patron_id], c)
         end
         info
       end
+
+      def get_patron_email(patron_id, conn)
+        cursor = conn.parse(VoyagerHelpers::Queries.patron_email)
+        cursor.bind_param(':id', patron_id)
+        cursor.exec()
+        row = cursor.fetch
+        cursor.close()
+        if row
+          email = row.shift
+        end
+      end
+        
+        
 
       def exec_get_patron_stat_codes(query, patron_id, conn)
         stat_codes = []
