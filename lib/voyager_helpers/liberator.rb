@@ -248,7 +248,18 @@ module VoyagerHelpers
         courses = []
         connection do |c|
           c.exec(query) do |enum|
-            courses << Course.new(*enum)
+            reserve_list_id = enum.shift
+            department_name = enum.shift
+            department_code = enum.shift
+            course_name = enum.shift
+            course_name = valid_codepoints(course_name) unless course_name.nil?
+            course_number = enum.shift
+            section_id = enum.shift
+            first_name = enum.shift
+            first_name = valid_codepoints(first_name) unless first_name.nil?
+            last_name = enum.shift
+            first_name = valid_codepoints(last_name) unless first_name.nil?
+            courses << Course.new(reserve_list_id, department_name, department_code, course_name, course_number, section_id, first_name, last_name)
           end
         end
         courses
