@@ -258,7 +258,7 @@ module VoyagerHelpers
             first_name = enum.shift
             first_name = valid_codepoints(first_name) unless first_name.nil?
             last_name = enum.shift
-            first_name = valid_codepoints(last_name) unless first_name.nil?
+            last_name = valid_codepoints(last_name) unless last_name.nil?
             courses << Course.new(reserve_list_id, department_name, department_code, course_name, course_number, section_id, first_name, last_name)
           end
         end
