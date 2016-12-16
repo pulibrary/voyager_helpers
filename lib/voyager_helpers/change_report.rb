@@ -113,20 +113,24 @@ module VoyagerHelpers
       private
 
       def bib_id_for_holding_id(holding_id, conn=nil)
-        query = VoyagerHelpers::Queries.bib_id_for_holding_id(holding_id)
         if conn.nil?
           connection do |c|
-            exec_bib_id_for_holding_id(query, c)
+            exec_bib_id_for_holding_id(holding_id, c)
           end
         else
-          exec_bib_id_for_holding_id(query, conn)
+          exec_bib_id_for_holding_id(holding_id, conn)
         end
       end
 
-      def exec_bib_id_for_holding_id(query, connection)
+      def exec_bib_id_for_holding_id(holding_id, connection)
         data = {}
-        connection.exec(query) do |id, created, updated|
-          data[:id] = id.to_s
+        cursor = connection.parse(VoyagerHelpers::Queries.bib_id_for_holding_id)
+        cursor.bind_param(':id', holding_id)
+        cursor.exec()
+        while row = cursor.fetch
+          data[:id] = row.shift.to_s
+          created = row.shift
+          updated = row.shift
           if !updated.nil?
             data[:lastmod] = updated.to_datetime.new_offset(0)
           elsif !created.nil?
@@ -135,6 +139,7 @@ module VoyagerHelpers
             data[:lastmod] = DateTime.now.new_offset(0)
           end
         end
+        cursor.close()
         data
       end
 
