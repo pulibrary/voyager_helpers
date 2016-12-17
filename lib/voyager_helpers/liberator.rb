@@ -473,7 +473,9 @@ module VoyagerHelpers
           cursor = c.parse(query)
           cursor.bind_param(':item_id', item_id)
           cursor.exec()
-          row = cursor.fetch
+          while r = cursor.fetch
+            row = r
+          end
           cursor.close()
         end
         info[:id] = row.shift
