@@ -387,6 +387,43 @@ module VoyagerHelpers
         )
       end
 
+      def courses_for_reserved_items(ids)
+        ids = OCI8::in_cond(:id, ids)
+        %Q(
+          SELECT
+            reserve_list_items.reserve_list_id,
+            department.department_name,
+            department.department_code,
+            course.course_name,
+            course.course_number,
+            reserve_list_courses.section_id,
+            instructor.first_name,
+            instructor.last_name
+          FROM reserve_list_items
+            JOIN reserve_list
+              ON reserve_list_items.reserve_list_id = reserve_list.reserve_list_id
+            JOIN reserve_list_courses
+              ON reserve_list_items.reserve_list_id = reserve_list_courses.reserve_list_id
+            JOIN department
+              ON reserve_list_courses.department_id = department.department_id
+            JOIN instructor
+              ON reserve_list_courses.instructor_id = instructor.instructor_id
+            JOIN course
+              ON reserve_list_courses.course_id = course.course_id
+          WHERE 
+            reserve_list_items.item_id IN (#{ids.names})
+          GROUP BY
+            reserve_list_items.reserve_list_id,
+            department.department_name,
+            department.department_code,
+            course.course_name,
+            course.course_number,
+            reserve_list_courses.section_id,
+            instructor.first_name,
+            instructor.last_name
+        )
+      end
+
       def current_periodicals
         %Q(
         SELECT
