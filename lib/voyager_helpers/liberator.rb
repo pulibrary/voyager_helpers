@@ -191,9 +191,13 @@ module VoyagerHelpers
                 end
               else
                 item = get_info_for_item(holding_item_ids.first, c, false)
-                availability[bib_id][mfhd_id][:temp_loc] = item[:temp_location] unless item[:temp_location].nil?
+                unless item[:temp_location].nil?
+                  availability[bib_id][mfhd_id][:temp_loc] = item[:temp_location]
+                  availability[bib_id][mfhd_id][:course_reserves] = get_courses(holding_item_ids, c).map(&:to_h)
+                end
                 availability[bib_id][mfhd_id][:copy_number] = item[:copy_number]
                 availability[bib_id][mfhd_id][:item_id] = item[:id]
+                availability[bib_id][mfhd_id][:on_reserve] = item[:on_reserve]
                 item[:status]
               end
             end
@@ -201,6 +205,28 @@ module VoyagerHelpers
           _, availability = availability.first if full # return just holding availability hash (single bib)
           availability
         end
+      end
+
+      def get_courses(item_ids, conn = nil)
+        courses = []
+        query = VoyagerHelpers::Queries.courses_for_reserved_items(item_ids)
+        connection(conn) do |c|
+          c.exec(query, *item_ids) do |enum|
+            reserve_list_id = enum.shift
+            department_name = enum.shift
+            department_code = enum.shift
+            course_name = enum.shift
+            course_name = valid_codepoints(course_name) unless course_name.nil?
+            course_number = enum.shift
+            section_id = enum.shift
+            first_name = enum.shift
+            first_name = valid_codepoints(first_name) unless first_name.nil?
+            last_name = enum.shift
+            last_name = valid_codepoints(last_name) unless last_name.nil?
+            courses << Course.new(reserve_list_id, department_name, department_code, course_name, course_number, section_id, first_name, last_name)
+          end
+        end
+        courses
       end
 
       # @param mfhd_id [Fixnum] get info for all mfhd items
