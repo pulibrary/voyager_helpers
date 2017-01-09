@@ -198,6 +198,9 @@ module VoyagerHelpers
                 availability[bib_id][mfhd_id][:copy_number] = item[:copy_number]
                 availability[bib_id][mfhd_id][:item_id] = item[:id]
                 availability[bib_id][mfhd_id][:on_reserve] = item[:on_reserve]
+                if item[:due_date]
+                  availability[bib_id][mfhd_id][:due_date] = item[:due_date]
+                end
                 item[:status]
               end
             end
@@ -243,6 +246,7 @@ module VoyagerHelpers
           item_hash[:copy_number] = item[:copy_number]
           item_hash[:item_sequence_number] = item[:item_sequence_number]
           item_hash[:status] = item[:status]
+          item_hash[:due_date] = item[:due_date] unless item[:due_date].nil?
           unless item[:enum].nil?
             enum = item[:enum]
             enum << " (#{item[:chron]})" unless item[:chron].nil?
@@ -520,7 +524,21 @@ module VoyagerHelpers
           info[:status_date] = date.to_datetime unless date.nil?
           info[:barcode] = row.shift
         end
+        if ['Charged', 'Renewed', 'Overdue'].include? info[:status]
+          info[:due_date] = get_due_date_for_item(item_id, conn)
+        end
         info
+      end
+
+      def get_due_date_for_item(item_id, conn)
+        cursor = conn.parse(VoyagerHelpers::Queries.item_due_date)
+        cursor.bind_param(':item_id', item_id)
+        cursor.exec()
+        row = cursor.fetch
+        cursor.close()
+        if row
+          due_date = row.shift
+        end
       end
 
       def valid_ascii(string)
