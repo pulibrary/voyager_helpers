@@ -531,13 +531,13 @@ module VoyagerHelpers
       end
 
       def get_due_date_for_item(item_id, conn)
-        cursor = conn.parse(VoyagerHelpers::Queries.item_due_date)
-        cursor.bind_param(':item_id', item_id)
-        cursor.exec()
-        row = cursor.fetch
-        cursor.close()
-        if row
-          due_date = row.shift
+        connection(conn) do |c|
+          cursor = c.parse(VoyagerHelpers::Queries.item_due_date)
+          cursor.bind_param(':item_id', item_id)
+          cursor.exec()
+          row = cursor.fetch
+          cursor.close()
+          due_date = row.shift if row
         end
       end
 
