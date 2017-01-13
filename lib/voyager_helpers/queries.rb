@@ -305,6 +305,19 @@ module VoyagerHelpers
         )
       end
 
+      def patron_email
+        %Q(
+          SELECT
+            address_line1
+          FROM patron_address
+          WHERE
+            patron_id = :id
+            AND address_type = 3
+            AND effect_date <= sysdate
+            AND expire_date > sysdate
+        )
+      end
+
       def patron_info(id_field)
         %Q(
           SELECT
