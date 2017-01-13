@@ -5,6 +5,7 @@
   queries
   resource_report
   sync_fu
+  availability_status
 }.each do |f|
   require_relative "voyager_helpers/#{f}"
 end

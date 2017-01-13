@@ -203,6 +203,7 @@ module VoyagerHelpers
                 end
                 item[:status]
               end
+              availability[bib_id][mfhd_id][:standardized_status] = AvailabilityStatus.new(availability[bib_id][mfhd_id]).status_label
             end
           end
           _, availability = availability.first if full # return just holding availability hash (single bib)
@@ -246,6 +247,7 @@ module VoyagerHelpers
           item_hash[:copy_number] = item[:copy_number]
           item_hash[:item_sequence_number] = item[:item_sequence_number]
           item_hash[:status] = item[:status]
+          item_hash[:standardized_status] = AvailabilityStatus.new(item_hash).status_label
           item_hash[:due_date] = item[:due_date] unless item[:due_date].nil?
           unless item[:enum].nil?
             enum = item[:enum]
