@@ -434,6 +434,8 @@ module VoyagerHelpers
               ON reserve_list_courses.course_id = course.course_id
           WHERE 
             reserve_list_items.item_id IN (#{ids.names})
+            AND reserve_list.expire_date >= sysdate
+            AND reserve_list.effect_date <= sysdate
           GROUP BY
             reserve_list_items.reserve_list_id,
             department.department_name,
