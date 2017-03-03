@@ -159,7 +159,7 @@ describe VoyagerHelpers::Liberator do
                                 barcode: item_barcode
     }] }
     let(:three_items) { [enum_with_chron.first, reserve_item.first, limited_multivolume.first] }
-    let(:charged_item) { [{
+    let(:charged_item_no_reserve) { [{
                                 id: item_id,
                                 status: charged,
                                 on_reserve: 'N',
@@ -171,9 +171,22 @@ describe VoyagerHelpers::Liberator do
                                 item_sequence_number: 1,
                                 status_date: '2014-05-27T06:00:19.000-05:00',
                                 barcode: item_barcode,
-                                due_date: '2014-09-27T23:59:00.000-0500'
+                                due_date: '2/14/2017'
     }] }
-
+    let(:charged_item_reserve) { [{
+                                id: item_id,
+                                status: charged,
+                                on_reserve: 'Y',
+                                temp_location: temp,
+                                perm_location: 'sci',
+                                enum: nil,
+                                chron: nil,
+                                copy_number: 1,
+                                item_sequence_number: 1,
+                                status_date: '2014-05-27T06:00:19.000-05:00',
+                                barcode: item_barcode,
+                                due_date: '2/14/2017 12:35pm'
+    }] }
     it 'includes item id and barcode in response' do
       allow(described_class).to receive(:get_items_for_holding).and_return(single_volume_2_copy)
       availability = described_class.get_full_mfhd_availability(placeholder_id).first
@@ -226,10 +239,15 @@ describe VoyagerHelpers::Liberator do
       item_ids = availability.map { |i| i[:id] }
       expect(item_ids).to eq [item_2_id, item_id, item_3_id]
     end
-    it 'displays an item due date if charged' do
-      allow(described_class).to receive(:get_items_for_holding).and_return(charged_item)
+    it 'displays an item due date in the format mm/dd/yyyy (month and day no-padded) if charged and not on reserve' do
+      allow(described_class).to receive(:get_items_for_holding).and_return(charged_item_no_reserve)
       availability = described_class.get_full_mfhd_availability(placeholder_id).first
-      expect(availability[:due_date]).to eq '2014-09-27T23:59:00.000-0500'
+      expect(availability[:due_date]).to eq '2/14/2017'
+    end
+    it 'displays an item due date in the format mm/dd/yyyy hh:mm(pm/am)(month, day, hour no-padded) if charged and on reserve' do
+      allow(described_class).to receive(:get_items_for_holding).and_return(charged_item_reserve)
+      availability = described_class.get_full_mfhd_availability(placeholder_id).first
+      expect(availability[:due_date]).to eq '2/14/2017 12:35pm'
     end
   end
 

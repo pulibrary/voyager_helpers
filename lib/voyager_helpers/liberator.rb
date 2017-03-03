@@ -526,6 +526,11 @@ module VoyagerHelpers
         end
         if ['Charged', 'Renewed', 'Overdue'].include? info[:status]
           info[:due_date] = get_due_date_for_item(item_id, conn)
+          if info[:on_reserve] == 'Y'
+            info[:due_date] = info[:due_date].strftime('%-m/%-d/%Y %l:%M%P')
+          else
+            info[:due_date] = info[:due_date].strftime('%-m/%-d/%Y')
+          end
         end
         info
       end
