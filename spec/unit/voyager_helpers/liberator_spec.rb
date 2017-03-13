@@ -1,5 +1,6 @@
 require 'spec_helper'
 require 'json'
+require 'time'
 
 def json_stub(filename)
   record = fixture("/#{filename}.json")
@@ -171,7 +172,7 @@ describe VoyagerHelpers::Liberator do
                                 item_sequence_number: 1,
                                 status_date: '2014-05-27T06:00:19.000-05:00',
                                 barcode: item_barcode,
-                                due_date: '2037-06-15 23:00:00 -0400'
+                                due_date: Time.parse('2037-06-15 23:00:00 -0400')
     }] }
     let(:charged_item_reserve) { [{
                                 id: item_id,
@@ -185,7 +186,7 @@ describe VoyagerHelpers::Liberator do
                                 item_sequence_number: 1,
                                 status_date: '2014-05-27T06:00:19.000-05:00',
                                 barcode: item_barcode,
-                                due_date: '2037-06-15 23:00:00 -0400'
+                                due_date: Time.parse('2037-06-15 23:00:00 -0400')
     }] }
     let(:charged_item_long_overdue) { [{
                                 id: item_id,
@@ -199,7 +200,7 @@ describe VoyagerHelpers::Liberator do
                                 item_sequence_number: 1,
                                 status_date: '2014-05-27T06:00:19.000-05:00',
                                 barcode: item_barcode,
-                                due_date: '2000-06-15 23:00:00 -0400'
+                                due_date: Time.parse('2000-06-15 23:00:00 -0400')
     }] }
     it 'includes item id and barcode in response' do
       allow(described_class).to receive(:get_items_for_holding).and_return(single_volume_2_copy)
