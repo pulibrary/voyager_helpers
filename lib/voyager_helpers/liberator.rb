@@ -709,7 +709,7 @@ module VoyagerHelpers
       def get_record_ids_from_barcode(barcode, conn=nil)
         record_ids = []
         connection(conn) do |c|
-          cursor = c.parse(VoyagerHelpers::Queries.record_ids_for_barcode)
+          cursor = c.parse(VoyagerHelpers::Queries.barcode_record_ids)
           cursor.bind_param(':barcode', barcode)
           cursor.exec()
           while row = cursor.fetch
