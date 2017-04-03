@@ -249,9 +249,13 @@ module VoyagerHelpers
           due_date = format_due_date(item[:due_date], item[:on_reserve])
           item_hash[:due_date] = due_date unless due_date.nil?
           unless item[:enum].nil?
+            item_hash[:enum] = item[:enum]
             enum = item[:enum]
-            enum << " (#{item[:chron]})" unless item[:chron].nil?
-            item_hash[:enum] = enum
+            unless item[:chron].nil?
+              enum = enum + " (#{item[:chron]})"
+              item_hash[:chron] = item[:chron]
+            end
+            item_hash[:enum_display] = enum
           end
           item_availability << item_hash
         end
@@ -546,7 +550,7 @@ module VoyagerHelpers
         return if due_date.nil?
         unless due_date.to_datetime < DateTime.now-30
           if on_reserve == 'Y'
-            due_date = due_date.strftime('%-m/%-d/%Y %l:%M%P')            
+            due_date = due_date.strftime('%-m/%-d/%Y %l:%M%P')
           else
             due_date = due_date.strftime('%-m/%-d/%Y')
           end
