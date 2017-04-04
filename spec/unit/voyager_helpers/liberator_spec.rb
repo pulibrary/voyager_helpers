@@ -226,7 +226,7 @@ describe VoyagerHelpers::Liberator do
     it 'includes chron date with enumeration info when present' do
       allow(described_class).to receive(:get_items_for_holding).and_return(enum_with_chron)
       availability = described_class.get_full_mfhd_availability(placeholder_id).first
-      expect(availability[:enum]).to include("(#{chron_info})")
+      expect(availability[:enum_display]).to include("(#{chron_info})")
     end
     it 'includes copy number for non-reserve items if value is not 1' do
       allow(described_class).to receive(:get_items_for_holding).and_return(single_volume_2_copy)
