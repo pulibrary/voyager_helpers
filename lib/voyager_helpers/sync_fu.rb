@@ -41,9 +41,10 @@ module VoyagerHelpers
       end
 
       ## For Recap Processing
+      ## Should come in as yyyy-mm-dd hh24:mi:ss.ffffff - 0400
       def recap_barcodes_to_file(file_handle, last_dump_date, conn=nil)
-        query = VoyagerHelpers::Liberator.updated_recap_barcodes(last_dump_date.strftime("%Y-%m-%d %H:%M:%S"))
-        ids_to_file(file_handle, query, conn=nil)
+        barcodes = VoyagerHelpers::Liberator.updated_recap_barcodes(last_dump_date.strftime("%Y-%m-%d %H:%M:%S.%6N %z"))
+        write_barcodes(file_handle, barcodes)
       end
 
       def holding_ids_to_file(file_handle, conn=nil)
@@ -67,6 +68,14 @@ module VoyagerHelpers
         File.open(file_handle, 'w') do |f|
           connection.exec(query) do |id, created, updated|
             f.write("#{id} #{created.to_datetime.new_offset(0) unless created.nil?} #{updated.to_datetime.new_offset(0) unless updated.nil?}\n")
+          end
+        end
+      end
+      
+      def write_barcodes(file_handle, barcodes)
+        File.open(file_handle, 'w') do |f|
+          barcodes.each do |barcode|
+            f.write("#{barcode}\n")
           end
         end
       end
