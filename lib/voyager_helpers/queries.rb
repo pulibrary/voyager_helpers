@@ -87,8 +87,8 @@ module VoyagerHelpers
             AND bib_master.suppress_in_opac = 'N'
             AND mfhd_master.suppress_in_opac = 'N'
             AND item_barcode.barcode_status = 1
-            AND ((bib_history.action_date > TO_DATE(:last_diff_date, 'yyyy-mm-dd hh24:mi:ss') AND bib_history.action_type_id != 1)
-              OR (mfhd_history.action_date > TO_DATE(:last_diff_date, 'yyyy-mm-dd hh24:mi:ss') AND mfhd_history.action_type_id != 1))
+            AND ((bib_history.action_date > TO_TIMESTAMP_TZ(:last_diff_date, 'YYYY-MM-DD HH24:MI:SS.FF TZHTZM') AND bib_history.action_type_id != 1)
+              OR (mfhd_history.action_date > TO_TIMESTAMP_TZ(:last_diff_date, 'YYYY-MM-DD HH24:MI:SS.FF TZHTZM') AND mfhd_history.action_type_id != 1))
           GROUP BY item_barcode.item_barcode
         )
       end
