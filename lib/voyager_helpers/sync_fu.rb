@@ -40,6 +40,12 @@ module VoyagerHelpers
         ids_to_file(file_handle, query, conn=nil)
       end
 
+      ## For Recap Processing
+      def recap_barcodes_to_file(file_handle, last_dump_date, conn=nil)
+        query = VoyagerHelpers::Liberator.updated_recap_barcodes(last_dump_date.strftime("%Y-%m-%d %H:%M:%S"))
+        ids_to_file(file_handle, query, conn=nil)
+      end
+
       def holding_ids_to_file(file_handle, conn=nil)
         query = VoyagerHelpers::Queries.all_unsupressed_mfhd_ids
         ids_to_file(file_handle, query, conn=nil)
@@ -120,8 +126,6 @@ module VoyagerHelpers
 
     end # class << self
   end # class SyncFu
-
-
 end # module VoyagerHelpers
 
 

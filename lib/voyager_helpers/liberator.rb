@@ -393,7 +393,7 @@ module VoyagerHelpers
         records
       end
 
-      # @param date [String] in format yyyy-mm-dd hh24:mi:ss
+      # @param date [String] in format yyyy-mm-dd hh24:mi:ss.ffffff (truncate systime to 6 decimal places)
       # @return [Array]
       def updated_recap_barcodes(date)
         barcodes = []
