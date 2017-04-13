@@ -295,6 +295,7 @@ module VoyagerHelpers
       end
 
       def patron_info(id_field)
+        patron_group_blacklist = ['1', '13'] ## Patron group 1 = Carrel 1, Patron group 13 = Carrel 2
         %Q(
           SELECT
             patron.title,
@@ -313,6 +314,7 @@ module VoyagerHelpers
             #{id_field}=:id
             AND patron.patron_id=patron_barcode.patron_id
             AND patron_barcode.barcode_status=1
+            AND patron_barcode.patron_group_id NOT IN (#{patron_group_blacklist.join(',')})
           )
       end
 
