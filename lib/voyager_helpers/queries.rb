@@ -295,7 +295,7 @@ module VoyagerHelpers
       end
 
       def patron_info(id_field)
-        patron_group_blacklist = ['1', '13']
+        patron_group_blacklist = ['1', '13'] ## Patron group 1 = Carrel 1, Patron group 13 = Carrel 2
         %Q(
           SELECT
             patron.title,
