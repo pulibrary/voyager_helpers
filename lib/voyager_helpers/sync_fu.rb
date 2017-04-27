@@ -42,9 +42,8 @@ module VoyagerHelpers
 
       ## For Recap Processing
       ## Should come in as yyyy-mm-dd hh24:mi:ss.ffffff - 0400
-      def recap_barcodes_to_file(file_handle, last_dump_date, conn=nil)
-        barcodes = VoyagerHelpers::Liberator.updated_recap_barcodes(last_dump_date.strftime("%Y-%m-%d %H:%M:%S.%6N %z"))
-        write_barcodes(file_handle, barcodes)
+      def recap_barcodes_since(last_dump_date)
+        VoyagerHelpers::Liberator.updated_recap_barcodes(last_dump_date.strftime("%Y-%m-%d %H:%M:%S.%6N %z"))
       end
 
       def holding_ids_to_file(file_handle, conn=nil)
@@ -72,14 +71,6 @@ module VoyagerHelpers
         end
       end
       
-      def write_barcodes(file_handle, barcodes)
-        File.open(file_handle, 'w') do |f|
-          barcodes.each do |barcode|
-            f.write("#{barcode}\n")
-          end
-        end
-      end
-
       def parse_diff_line_to_hash(line)
         parts = line.split(' ')
         hsh = {
