@@ -269,6 +269,12 @@ describe VoyagerHelpers::Liberator do
       availability = described_class.get_full_mfhd_availability(placeholder_id).first
       expect(availability[:due_date]).to eq '6/15/2037 11:00pm'
     end
+
+    it 'displays an item on reserve flag marked yes' do
+      allow(described_class).to receive(:get_items_for_holding).and_return(charged_item_reserve)
+      availability = described_class.get_full_mfhd_availability(placeholder_id).first
+      expect(availability[:on_reserve]).to eq 'Y'
+    end
   end
 
   describe '#valid_ascii' do

@@ -246,6 +246,7 @@ module VoyagerHelpers
           item_hash[:copy_number] = item[:copy_number]
           item_hash[:item_sequence_number] = item[:item_sequence_number]
           item_hash[:status] = item[:status]
+          item_hash[:on_reserve] = item[:on_reserve] unless item[:on_reserve].nil?
           due_date = format_due_date(item[:due_date], item[:on_reserve])
           item_hash[:due_date] = due_date unless due_date.nil?
           unless item[:enum].nil?
