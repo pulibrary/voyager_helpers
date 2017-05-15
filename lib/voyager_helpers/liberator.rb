@@ -324,6 +324,19 @@ module VoyagerHelpers
         writer.close()
       end
 
+      def dump_merged_records_to_file(barcodes, file_name)
+        writer = MARC::XMLWriter.new(file_name)
+        connection do |c|
+          barcodes.each do |barcode|
+            records = VoyagerHelpers::Liberator.get_records_from_barcode(barcode)
+            records.each do |record|
+              writer.write(record) unless record.nil?
+            end
+          end
+        end
+        writer.close()
+      end
+
       # @param patron_id [String] Either a netID, PUID, or PU Barcode
       # @return [<Hash>]
       def get_patron_info(patron_id)
@@ -378,6 +391,23 @@ module VoyagerHelpers
           end
         end
         records
+      end
+
+      # @param date [String] in format yyyy-mm-dd hh24:mi:ss.ffffff timezone_hourtimezone_minute (e.g., 2017-04-05 13:50:25.213245 -0400)
+      # @return [Array]
+      def updated_recap_barcodes(date)
+        barcodes = []
+        query = VoyagerHelpers::Queries.recap_update_barcodes(date)
+        connection do |c|
+          cursor = c.parse(query)
+          cursor.bind_param(':last_diff_date', date)
+          cursor.exec()
+          while row = cursor.fetch
+            barcodes << row.first
+          end
+          cursor.close()
+        end
+        barcodes
       end
 
       private
