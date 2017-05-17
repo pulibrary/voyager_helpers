@@ -563,7 +563,11 @@ module VoyagerHelpers
       end
 
       def valid_codepoints(string)
-        string.codepoints.map{|c| c.chr(Encoding::UTF_8)}.join
+        unless string.nil?
+          string.codepoints.map{|c| c.chr(Encoding::UTF_8)}.join
+        else
+          string
+        end
       end
 
       def exec_get_info_for_patron(query, patron_id, conn)
@@ -575,7 +579,7 @@ module VoyagerHelpers
           row = cursor.fetch
           info[:netid] = row.shift
           f_name = row.shift
-          info[:first_name] = f_name.nil? ? f_name : valid_codepoints(f_name)
+          info[:first_name] = valid_codepoints(f_name)
           l_name = row.shift
           info[:last_name] = valid_codepoints(l_name)
           info[:barcode] = row.shift
