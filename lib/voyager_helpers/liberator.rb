@@ -563,11 +563,7 @@ module VoyagerHelpers
       end
 
       def valid_codepoints(string)
-        unless string.nil?
-          string.codepoints.map{|c| c.chr(Encoding::UTF_8)}.join
-        else
-          string
-        end
+        string.codepoints.map{|c| c.chr(Encoding::UTF_8)}.join unless string.nil?
       end
 
       def exec_get_info_for_patron(query, patron_id, conn)
