@@ -343,24 +343,44 @@ describe VoyagerHelpers::Liberator do
                               :status_date=>DateTime.new(2011,10,19,20,21,25,'-5'),
                               :barcode=>recap_barcode
                             }}
-      context 'non-ReCAP item' do
+      context 'non-ReCAP item, ReCAP flag off' do
         it 'retains 852$h and $i and adds item info to 876 without ReCAP-specific fields' do
           allow(described_class).to receive(:merge_holdings_info).and_return(norm_merged_mfhd_record.to_hash)
           full_record = described_class.send(:merge_holding_item_into_bib, norm_bib_record, norm_mfhd_record, norm_item_info)
           expect(full_record['852']['i']).to eq 'A68 2013'
           expect(full_record['876']['0']).to eq norm_mfhd_id
           expect(full_record['876']['p']).to eq norm_barcode
-          expect(full_record['876']['h']).to be_nil
+          expect(full_record['876']['x']).to be_nil
         end
       end
-      context 'ReCAP item' do
+      context 'non-ReCAP item, ReCAP flag on' do
+        it 'retains 852$h and $i and adds item info to 876 without ReCAP-specific fields' do
+          allow(described_class).to receive(:merge_holdings_info).and_return(norm_merged_mfhd_record.to_hash)
+          full_record = described_class.send(:merge_holding_item_into_bib, norm_bib_record, norm_mfhd_record, norm_item_info, recap=true)
+          expect(full_record['852']['i']).to eq 'A68 2013'
+          expect(full_record['876']['0']).to eq norm_mfhd_id
+          expect(full_record['876']['p']).to eq norm_barcode
+          expect(full_record['876']['x']).to be_nil
+        end
+      end
+      context 'ReCAP item, ReCAP flag on' do
         it 'merges 852$h and $i into 852 $h and adds ReCAP-specific info to 876' do
           allow(described_class).to receive(:merge_holdings_info).and_return(recap_merged_mfhd_record.to_hash)
-          full_record = described_class.send(:merge_holding_item_into_bib, recap_bib_record, recap_mfhd_record, recap_item_info)
-          expect(full_record['852']['h']).to eq 'BM899.61 .A39  M8'
+          full_record = described_class.send(:merge_holding_item_into_bib, recap_bib_record, recap_mfhd_record, recap_item_info, recap=true)
+          expect(full_record['852']['h']).to eq 'BM899.61 .A39 M8'
           expect(full_record['876']['0']).to eq recap_mfhd_id
           expect(full_record['876']['p']).to eq recap_barcode
           expect(full_record['876']['x']).to eq 'Shared'
+        end
+      end
+      context 'ReCAP item, ReCAP flag off' do
+        it 'retains 852$h and $i into 852 $h and does not add ReCAP-specific info to 876' do
+          allow(described_class).to receive(:merge_holdings_info).and_return(recap_merged_mfhd_record.to_hash)
+          full_record = described_class.send(:merge_holding_item_into_bib, recap_bib_record, recap_mfhd_record, recap_item_info, recap=false)
+          expect(full_record['852']['i']).to eq '.A39 M8'
+          expect(full_record['876']['0']).to eq recap_mfhd_id
+          expect(full_record['876']['p']).to eq recap_barcode
+          expect(full_record['876']['x']).to be_nil
         end
       end
     end

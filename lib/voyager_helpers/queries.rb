@@ -40,6 +40,27 @@ module VoyagerHelpers
         )
       end
 
+      def recap_barcode_record_ids
+        %Q(
+          SELECT
+            bib_item.bib_id,
+            mfhd_item.mfhd_id,
+            item_barcode.item_id
+          FROM item_barcode
+            JOIN mfhd_item
+              ON item_barcode.item_id = mfhd_item.item_id
+            JOIN bib_item
+              ON item_barcode.item_id = bib_item.item_id
+            JOIN mfhd_master
+              ON mfhd_item.mfhd_id = mfhd_master.mfhd_id
+            JOIN bib_master
+              ON bib_item.bib_id = bib_master.bib_id
+          WHERE
+            item_barcode.item_barcode = :barcode
+            AND item_barcode.barcode_status = 1
+        )
+      end
+
       def barcode_record_ids
         %Q(
           SELECT
@@ -63,12 +84,10 @@ module VoyagerHelpers
         )
       end
 
-      def recap_update_barcodes(date)
+      def recap_update_bib_barcodes
         %Q(
           SELECT item_barcode.item_barcode
-          FROM bib_master
-            JOIN bib_history
-              ON bib_master.bib_id = bib_history.bib_id
+          FROM bib_history
             JOIN bib_mfhd
               ON bib_history.bib_id = bib_mfhd.bib_id
             JOIN mfhd_master
@@ -84,12 +103,62 @@ module VoyagerHelpers
           WHERE
             mfhd_master.location_id IN (#{recap_locations.join(",")})
             AND item.perm_location = mfhd_master.location_id
-            AND bib_master.suppress_in_opac = 'N'
-            AND mfhd_master.suppress_in_opac = 'N'
             AND item_barcode.barcode_status = 1
-            AND ((bib_history.action_date > TO_TIMESTAMP_TZ(:last_diff_date, 'YYYY-MM-DD HH24:MI:SS.FF TZHTZM') AND bib_history.action_type_id != 1)
-              OR (mfhd_history.action_date > TO_TIMESTAMP_TZ(:last_diff_date, 'YYYY-MM-DD HH24:MI:SS.FF TZHTZM') AND mfhd_history.action_type_id != 1))
-          GROUP BY item_barcode.item_barcode
+            AND (
+              (bib_history.action_date > TO_TIMESTAMP_TZ(:last_diff_date, 'YYYY-MM-DD HH24:MI:SS.FF TZHTZM') AND bib_history.action_type_id != 1)
+            )
+        )
+      end
+
+      def recap_update_holding_barcodes
+        %Q(
+          SELECT item_barcode.item_barcode
+          FROM bib_history
+            JOIN bib_mfhd
+              ON bib_history.bib_id = bib_mfhd.bib_id
+            JOIN mfhd_master
+              ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id
+            JOIN mfhd_history
+              ON mfhd_master.mfhd_id = mfhd_history.mfhd_id
+            JOIN mfhd_item
+              ON mfhd_history.mfhd_id = mfhd_item.mfhd_id
+            JOIN item
+              ON mfhd_item.item_id = item.item_id
+            JOIN item_barcode
+              ON item.item_id = item_barcode.item_id
+          WHERE
+            mfhd_master.location_id IN (#{recap_locations.join(",")})
+            AND item.perm_location = mfhd_master.location_id
+            AND item_barcode.barcode_status = 1
+            AND (
+              (mfhd_history.action_date > TO_TIMESTAMP_TZ(:last_diff_date, 'YYYY-MM-DD HH24:MI:SS.FF TZHTZM') AND mfhd_history.action_type_id != 1)
+            )
+        )
+      end
+
+      def recap_update_item_barcodes
+        %Q(
+          SELECT item_barcode.item_barcode
+          FROM bib_history
+            JOIN bib_mfhd
+              ON bib_history.bib_id = bib_mfhd.bib_id
+            JOIN mfhd_master
+              ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id
+            JOIN mfhd_history
+              ON mfhd_master.mfhd_id = mfhd_history.mfhd_id
+            JOIN mfhd_item
+              ON mfhd_history.mfhd_id = mfhd_item.mfhd_id
+            JOIN item
+              ON mfhd_item.item_id = item.item_id
+            JOIN item_barcode
+              ON item.item_id = item_barcode.item_id
+          WHERE
+            mfhd_master.location_id IN (#{recap_locations.join(",")})
+            AND item.perm_location = mfhd_master.location_id
+            AND item_barcode.barcode_status = 1
+            AND (
+              (item.modify_date > TO_TIMESTAMP_TZ(:last_diff_date, 'YYYY-MM-DD HH24:MI:SS.FF TZHTZM'))
+            )
         )
       end
 
