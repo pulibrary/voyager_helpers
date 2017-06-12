@@ -324,6 +324,19 @@ module VoyagerHelpers
         writer.close()
       end
 
+      def dump_merged_records_to_file(barcodes, file_name, recap=false)
+        writer = MARC::XMLWriter.new(file_name)
+        connection do |c|
+          barcodes.each do |barcode|
+            records = VoyagerHelpers::Liberator.get_records_from_barcode(barcode, recap)
+            records.each do |record|
+              writer.write(record) unless record.nil?
+            end
+          end
+        end
+        writer.close()
+      end
+
       # @param patron_id [String] Either a netID, PUID, or PU Barcode
       # @return [<Hash>]
       def get_patron_info(patron_id)
@@ -368,16 +381,49 @@ module VoyagerHelpers
 
       # @param barcode [String] An item barcode
       # @return [Array<MARC::Record>]
-      def get_records_from_barcode(barcode)
+      def get_records_from_barcode(barcode, recap=false)
         records = []
         connection do |c|
-          record_ids = get_record_ids_from_barcode(barcode, c)
+          record_ids = get_record_ids_from_barcode(barcode, c, recap)
           record_ids.each do |row|
             bib_id, mfhd_id, item_id = row
-            records << single_record_from_barcode(bib_id, mfhd_id, item_id, c)
+            records << single_record_from_barcode(bib_id, mfhd_id, item_id, recap, c)
           end
         end
         records
+      end
+
+      # @param date [String] in format yyyy-mm-dd hh24:mi:ss.ffffff timezone_hourtimezone_minute (e.g., 2017-04-05 13:50:25.213245 -0400)
+      # @return [Array]
+      def updated_recap_barcodes(date)
+        barcodes = []
+        query = VoyagerHelpers::Queries.recap_update_bib_barcodes
+        connection do |c|
+          cursor = c.parse(query)
+          cursor.bind_param(':last_diff_date', date)
+          cursor.exec()
+          while row = cursor.fetch
+            barcodes << row.first
+          end
+          cursor.close()
+          query = VoyagerHelpers::Queries.recap_update_holding_barcodes
+          cursor = c.parse(query)
+          cursor.bind_param(':last_diff_date', date)
+          cursor.exec()
+          while row = cursor.fetch
+            barcodes << row.first
+          end
+          cursor.close()
+          query = VoyagerHelpers::Queries.recap_update_item_barcodes
+          cursor = c.parse(query)
+          cursor.bind_param(':last_diff_date', date)
+          cursor.exec()
+          while row = cursor.fetch
+            barcodes << row.first
+          end
+          cursor.close()
+        end
+        barcodes.uniq
       end
 
       private
@@ -711,10 +757,15 @@ module VoyagerHelpers
         end
       end
 
-      def get_record_ids_from_barcode(barcode, conn=nil)
+      def get_record_ids_from_barcode(barcode, conn=nil, recap=false)
         record_ids = []
         connection(conn) do |c|
-          cursor = c.parse(VoyagerHelpers::Queries.barcode_record_ids)
+          query = if recap
+            VoyagerHelpers::Queries.recap_barcode_record_ids
+          else
+            VoyagerHelpers::Queries.barcode_record_ids
+          end
+          cursor = c.parse(query)
           cursor.bind_param(':barcode', barcode)
           cursor.exec()
           while row = cursor.fetch
@@ -725,7 +776,7 @@ module VoyagerHelpers
         record_ids
       end
 
-      def merge_holding_item_into_bib(bib, holding, item, conn=nil)
+      def merge_holding_item_into_bib(bib, holding, item, recap=false, conn=nil)
         holdings = [holding]
         record_hash = merge_holdings_info(bib, holdings, conn)
         record_hash['fields'].delete_if { |f| ['876'].any? { |key| f.has_key?(key) } }
@@ -735,7 +786,7 @@ module VoyagerHelpers
         if holding['852']['i']
           combined_call_no = "#{holding['852']['h']} #{holding['852']['i']}"
         end
-        if holding_location =~ /^rcp[a-z]{2}$/
+        if recap && holding_location =~ /^rcp[a-z]{2}$/
           recap_item_hash = recap_item_info(holding_location)
           record_hash['fields'].delete_if { |f| ['852'].any? { |key| f.has_key?(key) } }
           holding.to_hash['fields'].select { |h| ['852'].any? { |key| h.has_key?(key) } }.each do |h|
@@ -777,13 +828,13 @@ module VoyagerHelpers
         MARC::Record.new_from_hash(record_hash)
       end
 
-      def single_record_from_barcode (bib_id, mfhd_id, item_id, conn=nil)
+      def single_record_from_barcode (bib_id, mfhd_id, item_id, recap=false, conn=nil)
         merged_record = nil
         connection(conn) do |c|
           bib = get_bib_record(bib_id, c, {:holdings=>false})
           holding = get_holding_record(mfhd_id, c)
           item = get_item(item_id, c)
-          merged_record = merge_holding_item_into_bib(bib, holding, item, c)
+          merged_record = merge_holding_item_into_bib(bib, holding, item, recap, c)
         end
         merged_record
       end
