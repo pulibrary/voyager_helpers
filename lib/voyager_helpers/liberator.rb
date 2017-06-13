@@ -56,9 +56,9 @@ module VoyagerHelpers
 
       # @param mfhd_id [Fixnum] A holding record id
       # @return [MARC::Record]
-      def get_holding_record(mfhd_id, conn=nil)
+      def get_holding_record(mfhd_id, conn=nil, recap=false)
         connection(conn) do |c|
-          unless mfhd_is_suppressed?(mfhd_id, c)
+          unless mfhd_is_suppressed?(mfhd_id, c) && recap == false
             segments = get_mfhd_segments(mfhd_id, c)
             MARC::Reader.decode(segments.join(''), :external_encoding => "UTF-8", :invalid => :replace, :replace => '') unless segments.empty?
           end
@@ -831,8 +831,8 @@ module VoyagerHelpers
       def single_record_from_barcode (bib_id, mfhd_id, item_id, recap=false, conn=nil)
         merged_record = nil
         connection(conn) do |c|
-          bib = get_bib_record(bib_id, c, {:holdings=>false})
-          holding = get_holding_record(mfhd_id, c)
+          bib = get_bib_without_holdings(bib_id, c)
+          holding = get_holding_record(mfhd_id, c, recap)
           item = get_item(item_id, c)
           merged_record = merge_holding_item_into_bib(bib, holding, item, recap, c)
         end
