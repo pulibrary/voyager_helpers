@@ -796,11 +796,20 @@ module VoyagerHelpers
             h[key]['subfields'].insert(2, {"h"=>combined_call_no})
             record_hash['fields'] << h
           end
+          item_enum_chron = ''
+          if item[:enum]
+            item_enum_chron << "#{item[:enum]} "
+          end
+          if item[:chron]
+            item_enum_chron << "(#{item[:chron]})"
+          end
+          item_enum_chron.gsub!(/^(.*)[ ]+$/, '\1')
           record_hash['fields'] << {"876"=>
             {"ind1"=>"0", "ind2"=>"0",
             "subfields"=>
               [
                 {"0"=>holding_id.to_s},
+                {"3"=>item_enum_chron},
                 {"a"=>item[:id].to_s},
                 {"h"=>recap_item_hash[:recap_use_restriction]},
                 {"j"=>item[:status]},
@@ -817,6 +826,7 @@ module VoyagerHelpers
             "subfields"=>
               [
                 {"0"=>holding_id.to_s},
+                {"3"=>item_enum_chron},
                 {"a"=>item[:id].to_s},
                 {"j"=>item[:status]},
                 {"p"=>item[:barcode].to_s},

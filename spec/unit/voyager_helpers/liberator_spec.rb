@@ -338,8 +338,8 @@ describe VoyagerHelpers::Liberator do
                               :item_sequence_number=>1,
                               :temp_location=>nil,
                               :perm_location=>"rcppa",
-                              :enum=>nil,
-                              :chron=>nil,
+                              :enum=>"v.2",
+                              :chron=>"1948",
                               :status_date=>DateTime.new(2011,10,19,20,21,25,'-5'),
                               :barcode=>recap_barcode
                             }}
@@ -371,6 +371,7 @@ describe VoyagerHelpers::Liberator do
           expect(full_record['876']['0']).to eq recap_mfhd_id
           expect(full_record['876']['p']).to eq recap_barcode
           expect(full_record['876']['x']).to eq 'Shared'
+          expect(full_record['876']['3']).to eq 'v.2 (1948)'
         end
       end
       context 'ReCAP item, ReCAP flag off' do
