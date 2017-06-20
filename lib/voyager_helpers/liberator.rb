@@ -782,28 +782,27 @@ module VoyagerHelpers
         record_hash['fields'].delete_if { |f| ['876'].any? { |key| f.has_key?(key) } }
         holding_id = holding['001'].value
         holding_location = holding['852']['b']
-        combined_call_no = ''
-        if holding['852']['i']
-          combined_call_no = "#{holding['852']['h']} #{holding['852']['i']}"
+        item_enum_chron = nil
+        if item[:enum]
+          item_enum_chron = item[:enum]
+          unless item[:chron].nil?
+            item_enum_chron << " (#{item[:chron]})"
+          end
+        elsif item[:chron]
+          item_enum_chron = "#{item[:chron]}"
         end
         if recap && holding_location =~ /^rcp[a-z]{2}$/
+          call_no = holding['852']['h'] unless holding['852']['h'].nil?
+          call_no << " #{holding['852']['i']}" unless holding['852']['i'].nil? 
           recap_item_hash = recap_item_info(holding_location)
           record_hash['fields'].delete_if { |f| ['852'].any? { |key| f.has_key?(key) } }
           holding.to_hash['fields'].select { |h| ['852'].any? { |key| h.has_key?(key) } }.each do |h|
             key, _value = h.first
             h[key]['subfields'].delete_if { |s| ['h', 'i'].any? { |key| s.has_key?(key) } }
             h[key]['subfields'].unshift({"0"=>holding_id})
-            h[key]['subfields'].insert(2, {"h"=>combined_call_no})
+            h[key]['subfields'].insert(2, {"h"=>call_no})
             record_hash['fields'] << h
           end
-          item_enum_chron = ''
-          if item[:enum]
-            item_enum_chron << "#{item[:enum]} "
-          end
-          if item[:chron]
-            item_enum_chron << "(#{item[:chron]})"
-          end
-          item_enum_chron.gsub!(/^(.*)[ ]+$/, '\1')
           record_hash['fields'] << {"876"=>
             {"ind1"=>"0", "ind2"=>"0",
             "subfields"=>
