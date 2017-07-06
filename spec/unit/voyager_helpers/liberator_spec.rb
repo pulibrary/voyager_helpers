@@ -421,7 +421,6 @@ describe VoyagerHelpers::Liberator do
           expect(full_record['876']['p']).to eq recap_barcode
           expect(full_record['876']['t']).to eq '1'
           expect(full_record['876']['x']).to eq 'Shared'
-
         end
       end
       context 'ReCAP item, ReCAP flag off' do

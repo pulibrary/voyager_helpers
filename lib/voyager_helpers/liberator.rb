@@ -789,11 +789,13 @@ module VoyagerHelpers
             item_enum_chron << " (#{item[:chron]})"
           end
         elsif item[:chron]
-          item_enum_chron = "#{item[:chron]}"
+          item_enum_chron = item[:chron]
         end
         if recap && holding_location =~ /^rcp[a-z]{2}$/
-          call_no = holding['852']['h'] unless holding['852']['h'].nil?
-          call_no << " #{holding['852']['i']}" unless holding['852']['i'].nil? 
+          call_no = ''
+          call_no << holding['852']['h'] unless holding['852']['h'].nil?
+          call_no << " #{holding['852']['i']}" unless holding['852']['i'].nil?
+          call_no.gsub!(/^[[:blank:]]+(.*)$/, '\1')
           recap_item_hash = recap_item_info(holding_location)
           record_hash['fields'].delete_if { |f| ['852'].any? { |key| f.has_key?(key) } }
           holding.to_hash['fields'].select { |h| ['852'].any? { |key| h.has_key?(key) } }.each do |h|
