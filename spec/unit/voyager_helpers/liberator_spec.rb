@@ -309,7 +309,7 @@ describe VoyagerHelpers::Liberator do
     describe '#merge_holding_item_into_bib' do
       let(:norm_merged_mfhd_record) { json_stub("merged_mfhd_#{norm_bib_id}") }
       let(:norm_barcode) { '32101089814220' }
-      let(:norm_item_id) { 6800460 }
+      let(:norm_item_id) { '6800460' }
       let(:norm_item_info)  {{
                               :id=>norm_item_id,
                               :status=>"Not Charged",
@@ -323,13 +323,39 @@ describe VoyagerHelpers::Liberator do
                               :status_date=>DateTime.new(2016,10,19,20,21,25,'-5'),
                               :barcode=>norm_barcode
                             }}
+      let(:null_item_enum_with_chron)  {{
+                              :id=>norm_item_id,
+                              :status=>"Not Charged",
+                              :on_reserve=>"N",
+                              :copy_number=>1,
+                              :item_sequence_number=>1,
+                              :temp_location=>nil,
+                              :perm_location=>"f",
+                              :enum=>nil,
+                              :chron=>"1992",
+                              :status_date=>DateTime.new(2016,10,19,20,21,25,'-5'),
+                              :barcode=>norm_barcode
+                            }}
+      let(:item_enum_with_null_chron)  {{
+                              :id=>norm_item_id,
+                              :status=>"Not Charged",
+                              :on_reserve=>"N",
+                              :copy_number=>1,
+                              :item_sequence_number=>1,
+                              :temp_location=>nil,
+                              :perm_location=>"f",
+                              :enum=>"v.1",
+                              :chron=>nil,
+                              :status_date=>DateTime.new(2016,10,19,20,21,25,'-5'),
+                              :barcode=>norm_barcode
+                            }}
       let(:recap_bib_id) { '159315' }
       let(:recap_bib_record) { json_stub("bib_#{recap_bib_id}") }
       let(:recap_mfhd_id) { '176124' }
       let(:recap_mfhd_record) { json_stub("mfhd_#{recap_mfhd_id}") }
       let(:recap_merged_mfhd_record) { json_stub("merged_mfhd_#{recap_bib_id}") }
       let(:recap_barcode) { '32101063503237' }
-      let(:recap_item_id) { 171815 }
+      let(:recap_item_id) { '171815' }
       let(:recap_item_info)  {{
                               :id=>recap_item_id,
                               :status=>"Not Charged",
@@ -338,8 +364,8 @@ describe VoyagerHelpers::Liberator do
                               :item_sequence_number=>1,
                               :temp_location=>nil,
                               :perm_location=>"rcppa",
-                              :enum=>nil,
-                              :chron=>nil,
+                              :enum=>"v.2",
+                              :chron=>"1948",
                               :status_date=>DateTime.new(2011,10,19,20,21,25,'-5'),
                               :barcode=>recap_barcode
                             }}
@@ -349,8 +375,25 @@ describe VoyagerHelpers::Liberator do
           full_record = described_class.send(:merge_holding_item_into_bib, norm_bib_record, norm_mfhd_record, norm_item_info)
           expect(full_record['852']['i']).to eq 'A68 2013'
           expect(full_record['876']['0']).to eq norm_mfhd_id
+          expect(full_record['876']['a']).to eq norm_item_id
+          expect(full_record['876']['j']).to eq 'Not Charged'
           expect(full_record['876']['p']).to eq norm_barcode
+          expect(full_record['876']['t']).to eq '1'
           expect(full_record['876']['x']).to be_nil
+        end
+      end
+      context 'non-ReCAP item, ReCAP flag off, enum without chron' do
+        it 'has enum in 876$3' do
+          allow(described_class).to receive(:merge_holdings_info).and_return(norm_merged_mfhd_record.to_hash)
+          full_record = described_class.send(:merge_holding_item_into_bib, norm_bib_record, norm_mfhd_record, item_enum_with_null_chron)
+          expect(full_record['876']['3']).to eq 'v.1'
+        end
+      end
+      context 'non-ReCAP item, ReCAP flag off, chron without enum' do
+        it 'has chron without parens in 876$3' do
+          allow(described_class).to receive(:merge_holdings_info).and_return(norm_merged_mfhd_record.to_hash)
+          full_record = described_class.send(:merge_holding_item_into_bib, norm_bib_record, norm_mfhd_record, null_item_enum_with_chron)
+          expect(full_record['876']['3']).to eq '1992'
         end
       end
       context 'non-ReCAP item, ReCAP flag on' do
@@ -359,17 +402,24 @@ describe VoyagerHelpers::Liberator do
           full_record = described_class.send(:merge_holding_item_into_bib, norm_bib_record, norm_mfhd_record, norm_item_info, recap=true)
           expect(full_record['852']['i']).to eq 'A68 2013'
           expect(full_record['876']['0']).to eq norm_mfhd_id
+          expect(full_record['876']['a']).to eq norm_item_id
+          expect(full_record['876']['j']).to eq 'Not Charged'
           expect(full_record['876']['p']).to eq norm_barcode
+          expect(full_record['876']['t']).to eq '1'
           expect(full_record['876']['x']).to be_nil
         end
       end
-      context 'ReCAP item, ReCAP flag on' do
+      context 'ReCAP item, ReCAP flag on, with enum and chron' do
         it 'merges 852$h and $i into 852 $h and adds ReCAP-specific info to 876' do
           allow(described_class).to receive(:merge_holdings_info).and_return(recap_merged_mfhd_record.to_hash)
           full_record = described_class.send(:merge_holding_item_into_bib, recap_bib_record, recap_mfhd_record, recap_item_info, recap=true)
           expect(full_record['852']['h']).to eq 'BM899.61 .A39 M8'
           expect(full_record['876']['0']).to eq recap_mfhd_id
+          expect(full_record['876']['3']).to eq 'v.2 (1948)'
+          expect(full_record['876']['a']).to eq recap_item_id
+          expect(full_record['876']['j']).to eq 'Not Charged'
           expect(full_record['876']['p']).to eq recap_barcode
+          expect(full_record['876']['t']).to eq '1'
           expect(full_record['876']['x']).to eq 'Shared'
         end
       end
@@ -379,6 +429,7 @@ describe VoyagerHelpers::Liberator do
           full_record = described_class.send(:merge_holding_item_into_bib, recap_bib_record, recap_mfhd_record, recap_item_info, recap=false)
           expect(full_record['852']['i']).to eq '.A39 M8'
           expect(full_record['876']['0']).to eq recap_mfhd_id
+          expect(full_record['876']['3']).to eq 'v.2 (1948)'
           expect(full_record['876']['p']).to eq recap_barcode
           expect(full_record['876']['x']).to be_nil
         end
