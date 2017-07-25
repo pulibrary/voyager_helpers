@@ -206,7 +206,7 @@ module VoyagerHelpers
           LEFT JOIN item_barcode
             ON item_barcode.item_id = item.item_id
         WHERE item.item_id=:item_id AND
-          item_status.item_status NOT IN ('5', '6', '16', '19', '20', '21', '23', '24') AND
+          item_status.item_status NOT IN ('5', '16', '19', '20', '21', '23', '24') AND
           (item_barcode.barcode_status = 1 OR item_barcode.barcode_status IS NULL)
         )
       end
@@ -237,7 +237,7 @@ module VoyagerHelpers
           INNER JOIN item_status_type
             ON item_status_type.item_status_type = item_status.item_status
         WHERE item.item_id=:item_id AND
-          item_status.item_status NOT IN ('5', '6', '16', '19', '20', '21', '23', '24')
+          item_status.item_status NOT IN ('5', '16', '19', '20', '21', '23', '24')
         )
       end
 
@@ -445,7 +445,7 @@ module VoyagerHelpers
             reserve_list_courses.section_id,
             instructor.first_name,
             instructor.last_name
-          FROM reserve_list_courses 
+          FROM reserve_list_courses
             JOIN department
               ON reserve_list_courses.department_id = department.department_id
             JOIN instructor
@@ -456,7 +456,7 @@ module VoyagerHelpers
               ON reserve_list.reserve_list_id = reserve_list_courses.reserve_list_id
             JOIN reserve_list_items
               ON reserve_list.reserve_list_id = reserve_list_items.reserve_list_id
-          WHERE 
+          WHERE
             reserve_list.expire_date >= sysdate
             AND reserve_list.effect_date <= sysdate
           GROUP BY
@@ -509,7 +509,7 @@ module VoyagerHelpers
               ON reserve_list_courses.instructor_id = instructor.instructor_id
             JOIN course
               ON reserve_list_courses.course_id = course.course_id
-          WHERE 
+          WHERE
             reserve_list_items.item_id IN (#{ids.names})
             AND reserve_list.expire_date >= sysdate
             AND reserve_list.effect_date <= sysdate
