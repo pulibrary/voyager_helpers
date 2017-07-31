@@ -91,7 +91,7 @@ describe VoyagerHelpers::Liberator do
     let(:charged) { 'Charged' }
     let(:single_volume_2_copy) { [{
                                 id: item_id,
-                                status: not_charged,
+                                status: [not_charged],
                                 on_reserve: 'N',
                                 temp_location: nil,
                                 perm_location: 'f',
@@ -99,13 +99,12 @@ describe VoyagerHelpers::Liberator do
                                 chron: nil,
                                 copy_number: 2,
                                 item_sequence_number: 1,
-                                status_date: '2014-05-27T06:00:19.000-05:00',
                                 barcode: item_barcode
     }] }
     let(:enum_info) { 'v.2' }
     let(:limited_multivolume) { [{
                                 id: item_2_id,
-                                status: not_charged,
+                                status: [not_charged],
                                 on_reserve: 'N',
                                 temp_location: nil,
                                 perm_location: 'num',
@@ -113,14 +112,13 @@ describe VoyagerHelpers::Liberator do
                                 chron: nil,
                                 copy_number: 1,
                                 item_sequence_number: 2,
-                                status_date: '2014-05-27T06:00:19.000-05:00',
                                 barcode: item_barcode
     }] }
     let(:volume) { 'vol. 24' }
     let(:chron_info) { 'Jan 2016' }
     let(:enum_with_chron) { [{
                                 id: item_id,
-                                status: not_charged,
+                                status: [not_charged],
                                 on_reserve: 'N',
                                 temp_location: nil,
                                 perm_location: 'mus',
@@ -128,13 +126,12 @@ describe VoyagerHelpers::Liberator do
                                 chron: chron_info,
                                 copy_number: 1,
                                 item_sequence_number: 1,
-                                status_date: '2014-05-27T06:00:19.000-05:00',
                                 barcode: item_barcode
     }] }
     let(:temp) { 'scires' }
     let(:reserve_item) { [{
                                 id: item_3_id,
-                                status: not_charged,
+                                status: [not_charged],
                                 on_reserve: 'Y',
                                 temp_location: temp,
                                 perm_location: 'sci',
@@ -142,13 +139,12 @@ describe VoyagerHelpers::Liberator do
                                 chron: nil,
                                 copy_number: 1,
                                 item_sequence_number: nil,
-                                status_date: '2014-05-27T06:00:19.000-05:00',
                                 barcode: item_barcode
     }] }
     let(:perm) { 'sciterm' }
     let(:temp_no_reserve) { [{
                                 id: item_id,
-                                status: not_charged,
+                                status: [not_charged],
                                 on_reserve: 'N',
                                 temp_location: temp,
                                 perm_location: perm,
@@ -156,13 +152,12 @@ describe VoyagerHelpers::Liberator do
                                 chron: nil,
                                 copy_number: 1,
                                 item_sequence_number: 1,
-                                status_date: '2014-05-27T06:00:19.000-05:00',
                                 barcode: item_barcode
     }] }
     let(:three_items) { [enum_with_chron.first, reserve_item.first, limited_multivolume.first] }
     let(:charged_item_no_reserve) { [{
                                 id: item_id,
-                                status: charged,
+                                status: [charged],
                                 on_reserve: 'N',
                                 temp_location: nil,
                                 perm_location: perm,
@@ -170,13 +165,12 @@ describe VoyagerHelpers::Liberator do
                                 chron: nil,
                                 copy_number: 1,
                                 item_sequence_number: 1,
-                                status_date: '2014-05-27T06:00:19.000-05:00',
                                 barcode: item_barcode,
                                 due_date: Time.parse('2037-06-15 23:00:00 -0400')
     }] }
     let(:charged_item_reserve) { [{
                                 id: item_id,
-                                status: charged,
+                                status: [charged],
                                 on_reserve: 'Y',
                                 temp_location: temp,
                                 perm_location: 'sci',
@@ -184,13 +178,12 @@ describe VoyagerHelpers::Liberator do
                                 chron: nil,
                                 copy_number: 1,
                                 item_sequence_number: 1,
-                                status_date: '2014-05-27T06:00:19.000-05:00',
                                 barcode: item_barcode,
                                 due_date: Time.parse('2037-06-15 23:00:00 -0400')
     }] }
     let(:charged_item_long_overdue) { [{
                                 id: item_id,
-                                status: charged,
+                                status: [charged],
                                 on_reserve: 'N',
                                 temp_location: nil,
                                 perm_location: perm,
@@ -198,7 +191,6 @@ describe VoyagerHelpers::Liberator do
                                 chron: nil,
                                 copy_number: 1,
                                 item_sequence_number: 1,
-                                status_date: '2014-05-27T06:00:19.000-05:00',
                                 barcode: item_barcode,
                                 due_date: Time.parse('2000-06-15 23:00:00 -0400')
     }] }
@@ -211,7 +203,7 @@ describe VoyagerHelpers::Liberator do
     it 'includes Voyager status' do
       allow(described_class).to receive(:get_items_for_holding).and_return(single_volume_2_copy)
       availability = described_class.get_full_mfhd_availability(placeholder_id).first
-      expect(availability[:status]).to eq not_charged
+      expect(availability[:status]).to eq [not_charged]
     end
     it 'includes enumeration info when present' do
       allow(described_class).to receive(:get_items_for_holding).and_return(limited_multivolume)
@@ -290,6 +282,7 @@ describe VoyagerHelpers::Liberator do
   end
 
   describe 'holding and item merge related methods' do
+    let(:not_charged) { 'Not Charged' }
     let(:norm_bib_id) { '7991903' }
     let(:norm_bib_record) { json_stub("bib_#{norm_bib_id}") }
     let(:norm_mfhd_id) { '7770428' }
@@ -312,7 +305,7 @@ describe VoyagerHelpers::Liberator do
       let(:norm_item_id) { '6800460' }
       let(:norm_item_info)  {{
                               :id=>norm_item_id,
-                              :status=>"Not Charged",
+                              :status=>[not_charged],
                               :on_reserve=>"N",
                               :copy_number=>1,
                               :item_sequence_number=>1,
@@ -320,12 +313,23 @@ describe VoyagerHelpers::Liberator do
                               :perm_location=>"f",
                               :enum=>nil,
                               :chron=>nil,
-                              :status_date=>DateTime.new(2016,10,19,20,21,25,'-5'),
+                              :barcode=>norm_barcode
+                            }}
+      let(:multiple_item_statuses)  {{
+                              :id=>norm_item_id,
+                              :status=>[not_charged, 'In Process'],
+                              :on_reserve=>"N",
+                              :copy_number=>1,
+                              :item_sequence_number=>1,
+                              :temp_location=>nil,
+                              :perm_location=>"f",
+                              :enum=>nil,
+                              :chron=>nil,
                               :barcode=>norm_barcode
                             }}
       let(:null_item_enum_with_chron)  {{
                               :id=>norm_item_id,
-                              :status=>"Not Charged",
+                              :status=>[not_charged],
                               :on_reserve=>"N",
                               :copy_number=>1,
                               :item_sequence_number=>1,
@@ -333,12 +337,11 @@ describe VoyagerHelpers::Liberator do
                               :perm_location=>"f",
                               :enum=>nil,
                               :chron=>"1992",
-                              :status_date=>DateTime.new(2016,10,19,20,21,25,'-5'),
                               :barcode=>norm_barcode
                             }}
       let(:item_enum_with_null_chron)  {{
                               :id=>norm_item_id,
-                              :status=>"Not Charged",
+                              :status=>[not_charged],
                               :on_reserve=>"N",
                               :copy_number=>1,
                               :item_sequence_number=>1,
@@ -346,7 +349,6 @@ describe VoyagerHelpers::Liberator do
                               :perm_location=>"f",
                               :enum=>"v.1",
                               :chron=>nil,
-                              :status_date=>DateTime.new(2016,10,19,20,21,25,'-5'),
                               :barcode=>norm_barcode
                             }}
       let(:recap_bib_id) { '159315' }
@@ -358,7 +360,7 @@ describe VoyagerHelpers::Liberator do
       let(:recap_item_id) { '171815' }
       let(:recap_item_info)  {{
                               :id=>recap_item_id,
-                              :status=>"Not Charged",
+                              :status=>[not_charged],
                               :on_reserve=>"N",
                               :copy_number=>1,
                               :item_sequence_number=>1,
@@ -366,7 +368,6 @@ describe VoyagerHelpers::Liberator do
                               :perm_location=>"rcppa",
                               :enum=>"v.2",
                               :chron=>"1948",
-                              :status_date=>DateTime.new(2011,10,19,20,21,25,'-5'),
                               :barcode=>recap_barcode
                             }}
       context 'non-ReCAP item, ReCAP flag off' do
@@ -376,7 +377,20 @@ describe VoyagerHelpers::Liberator do
           expect(full_record['852']['i']).to eq 'A68 2013'
           expect(full_record['876']['0']).to eq norm_mfhd_id
           expect(full_record['876']['a']).to eq norm_item_id
-          expect(full_record['876']['j']).to eq 'Not Charged'
+          expect(full_record['876']['j']).to eq not_charged
+          expect(full_record['876']['p']).to eq norm_barcode
+          expect(full_record['876']['t']).to eq '1'
+          expect(full_record['876']['x']).to be_nil
+        end
+      end
+      context 'non-ReCAP item, multiple item statuses, ReCAP flag off' do
+        it 'retains 852$h and $i and adds item info with multiple statuses to 876 without ReCAP-specific fields' do
+          allow(described_class).to receive(:merge_holdings_info).and_return(norm_merged_mfhd_record.to_hash)
+          full_record = described_class.send(:merge_holding_item_into_bib, norm_bib_record, norm_mfhd_record, multiple_item_statuses)
+          expect(full_record['852']['i']).to eq 'A68 2013'
+          expect(full_record['876']['0']).to eq norm_mfhd_id
+          expect(full_record['876']['a']).to eq norm_item_id
+          expect(full_record['876']['j']).to eq 'Not Charged, In Process'
           expect(full_record['876']['p']).to eq norm_barcode
           expect(full_record['876']['t']).to eq '1'
           expect(full_record['876']['x']).to be_nil
@@ -403,7 +417,7 @@ describe VoyagerHelpers::Liberator do
           expect(full_record['852']['i']).to eq 'A68 2013'
           expect(full_record['876']['0']).to eq norm_mfhd_id
           expect(full_record['876']['a']).to eq norm_item_id
-          expect(full_record['876']['j']).to eq 'Not Charged'
+          expect(full_record['876']['j']).to eq not_charged
           expect(full_record['876']['p']).to eq norm_barcode
           expect(full_record['876']['t']).to eq '1'
           expect(full_record['876']['x']).to be_nil
@@ -417,7 +431,7 @@ describe VoyagerHelpers::Liberator do
           expect(full_record['876']['0']).to eq recap_mfhd_id
           expect(full_record['876']['3']).to eq 'v.2 (1948)'
           expect(full_record['876']['a']).to eq recap_item_id
-          expect(full_record['876']['j']).to eq 'Not Charged'
+          expect(full_record['876']['j']).to eq not_charged
           expect(full_record['876']['p']).to eq recap_barcode
           expect(full_record['876']['t']).to eq '1'
           expect(full_record['876']['x']).to eq 'Shared'

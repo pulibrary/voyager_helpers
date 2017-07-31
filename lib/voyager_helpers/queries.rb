@@ -84,18 +84,16 @@ module VoyagerHelpers
         )
       end
 
-      def recap_update_bib_barcodes
+      def recap_update_bib_items
         %Q(
-          SELECT item_barcode.item_barcode
+          SELECT item_barcode.item_id
           FROM bib_history
             JOIN bib_mfhd
               ON bib_history.bib_id = bib_mfhd.bib_id
             JOIN mfhd_master
               ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id
-            JOIN mfhd_history
-              ON mfhd_master.mfhd_id = mfhd_history.mfhd_id
             JOIN mfhd_item
-              ON mfhd_history.mfhd_id = mfhd_item.mfhd_id
+              ON mfhd_master.mfhd_id = mfhd_item.mfhd_id
             JOIN item
               ON mfhd_item.item_id = item.item_id
             JOIN item_barcode
@@ -110,12 +108,10 @@ module VoyagerHelpers
         )
       end
 
-      def recap_update_holding_barcodes
+      def recap_update_holding_items
         %Q(
-          SELECT item_barcode.item_barcode
-          FROM bib_history
-            JOIN bib_mfhd
-              ON bib_history.bib_id = bib_mfhd.bib_id
+          SELECT item_barcode.item_id
+          FROM bib_mfhd
             JOIN mfhd_master
               ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id
             JOIN mfhd_history
@@ -136,18 +132,14 @@ module VoyagerHelpers
         )
       end
 
-      def recap_update_item_barcodes
+      def recap_update_item_items
         %Q(
-          SELECT item_barcode.item_barcode
-          FROM bib_history
-            JOIN bib_mfhd
-              ON bib_history.bib_id = bib_mfhd.bib_id
+          SELECT item_barcode.item_id
+          FROM bib_mfhd
             JOIN mfhd_master
               ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id
-            JOIN mfhd_history
-              ON mfhd_master.mfhd_id = mfhd_history.mfhd_id
             JOIN mfhd_item
-              ON mfhd_history.mfhd_id = mfhd_item.mfhd_id
+              ON mfhd_master.mfhd_id = mfhd_item.mfhd_id
             JOIN item
               ON mfhd_item.item_id = item.item_id
             JOIN item_barcode
@@ -159,6 +151,16 @@ module VoyagerHelpers
             AND (
               (item.modify_date > TO_TIMESTAMP_TZ(:last_diff_date, 'YYYY-MM-DD HH24:MI:SS.FF TZHTZM'))
             )
+        )
+      end
+
+      def barcode_from_item
+        %Q(
+          SELECT item_barcode.item_barcode
+          FROM item_barcode
+          WHERE
+            item_barcode.barcode_status = 1
+            AND item_barcode.item_id = :item_id
         )
       end
 
@@ -182,7 +184,6 @@ module VoyagerHelpers
         %Q(
         SELECT
           item.item_id,
-          item_status_type.item_status_desc,
           item.on_reserve,
           item.copy_number,
           item.item_sequence_number,
@@ -190,23 +191,17 @@ module VoyagerHelpers
           perm_loc.location_code,
           mfhd_item.item_enum,
           mfhd_item.chron,
-          item_status.item_status_date,
           item_barcode.item_barcode
         FROM item
           INNER JOIN location perm_loc
             ON perm_loc.location_id = item.perm_location
           LEFT JOIN location temp_loc
             ON temp_loc.location_id = item.temp_location
-          INNER JOIN item_status
-            ON item_status.item_id = item.item_id
-          INNER JOIN item_status_type
-            ON item_status_type.item_status_type = item_status.item_status
           INNER JOIN mfhd_item
             ON mfhd_item.item_id = item.item_id
           LEFT JOIN item_barcode
             ON item_barcode.item_id = item.item_id
         WHERE item.item_id=:item_id AND
-          item_status.item_status NOT IN ('5', '16', '19', '20', '21', '23', '24') AND
           (item_barcode.barcode_status = 1 OR item_barcode.barcode_status IS NULL)
         )
       end
@@ -224,7 +219,6 @@ module VoyagerHelpers
         %Q(
         SELECT
           item.item_id,
-          item_status_type.item_status_desc,
           item.on_reserve,
           item.copy_number,
           item.item_sequence_number,
@@ -232,12 +226,7 @@ module VoyagerHelpers
         FROM item
           LEFT JOIN location temp_loc
             ON temp_loc.location_id = item.temp_location
-          INNER JOIN item_status
-            ON item_status.item_id = item.item_id
-          INNER JOIN item_status_type
-            ON item_status_type.item_status_type = item_status.item_status
-        WHERE item.item_id=:item_id AND
-          item_status.item_status NOT IN ('5', '16', '19', '20', '21', '23', '24')
+        WHERE item.item_id=:item_id
         )
       end
 
@@ -265,13 +254,6 @@ module VoyagerHelpers
           line_item_copy_status.mfhd_id = :mfhd_id
         ORDER BY
           line_item_copy_status.status_date DESC
-        )
-      end
-
-      def statuses
-        %Q(
-        SELECT item_status_type, item_status_desc
-        FROM item_status_type
         )
       end
 
@@ -377,6 +359,18 @@ module VoyagerHelpers
         %Q(
         SELECT item_id FROM mfhd_item
         WHERE mfhd_id=:mfhd_id
+        )
+      end
+
+      def item_statuses
+        %Q(
+        SELECT item_status_type.item_status_desc
+        FROM item_status_type
+          JOIN item_status
+            ON item_status_type.item_status_type = item_status.item_status
+        WHERE
+          item_status.item_id = :item_id
+          AND item_status_type.item_status_type NOT IN ('5', '16', '19', '20', '21', '23', '24')
         )
       end
 
