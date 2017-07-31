@@ -86,14 +86,6 @@ module VoyagerHelpers
       end
 
       # @return [<Hash>]
-      def get_item_statuses
-        query = VoyagerHelpers::Queries.statuses
-        statuses = {}
-        connection do |c|
-          c.exec(query) { |id,desc| statuses.store(id,desc) }
-        end
-        statuses
-      end
 
       def get_items_for_holding(mfhd_id, conn=nil)
         connection(conn) do |c|
@@ -397,31 +389,15 @@ module VoyagerHelpers
       # @return [Array]
       def updated_recap_barcodes(date)
         barcodes = []
-        query = VoyagerHelpers::Queries.recap_update_bib_barcodes
         connection do |c|
-          cursor = c.parse(query)
-          cursor.bind_param(':last_diff_date', date)
-          cursor.exec()
-          while row = cursor.fetch
-            barcodes << row.first
+          items = updated_recap_items(date, c)
+          items.each do |item|
+            item_statuses = get_item_statuses(item, c)
+            unless item_statuses.include?('In Process')
+              item_barcode = get_barcode_from_item(item, c)
+              barcodes << item_barcode
+            end
           end
-          cursor.close()
-          query = VoyagerHelpers::Queries.recap_update_holding_barcodes
-          cursor = c.parse(query)
-          cursor.bind_param(':last_diff_date', date)
-          cursor.exec()
-          while row = cursor.fetch
-            barcodes << row.first
-          end
-          cursor.close()
-          query = VoyagerHelpers::Queries.recap_update_item_barcodes
-          cursor = c.parse(query)
-          cursor.bind_param(':last_diff_date', date)
-          cursor.exec()
-          while row = cursor.fetch
-            barcodes << row.first
-          end
-          cursor.close()
         end
         barcodes.uniq
       end
@@ -555,13 +531,10 @@ module VoyagerHelpers
           cursor = c.parse(query)
           cursor.bind_param(':item_id', item_id)
           cursor.exec()
-          while r = cursor.fetch
-            row = r
-          end
+          row = cursor.fetch
           cursor.close()
         end
         info[:id] = row.shift
-        info[:status] = row.shift
         info[:on_reserve] = row.shift
         info[:copy_number] = row.shift
         info[:item_sequence_number] = row.shift
@@ -572,11 +545,10 @@ module VoyagerHelpers
           info[:enum] = valid_ascii(enum)
           chron = row.shift
           info[:chron] = valid_ascii(chron)
-          date = row.shift
-          info[:status_date] = date.to_datetime unless date.nil?
           info[:barcode] = row.shift
         end
-        if ['Charged', 'Renewed', 'Overdue'].include? info[:status]
+        info[:status] = get_item_statuses(item_id, conn)
+        unless (info[:status] & ['Charged', 'Renewed', 'Overdue']).empty?
           info[:due_date] = get_due_date_for_item(item_id, conn)
         end
         info
@@ -602,6 +574,64 @@ module VoyagerHelpers
             due_date = due_date.strftime('%-m/%-d/%Y')
           end
         end
+      end
+
+      def get_item_statuses(item_id, conn=nil)
+        query = VoyagerHelpers::Queries.item_statuses
+        statuses = []
+        connection do |c|
+          cursor = c.parse(query)
+          cursor.bind_param(':item_id', item_id)
+          cursor.exec()
+          while row = cursor.fetch
+            statuses << row.first
+          end
+        end
+        statuses
+      end
+
+      def get_barcode_from_item(item_id, conn=nil)
+        barcode = ''
+        query = VoyagerHelpers::Queries.barcode_from_item
+        connection do |c|
+          cursor = c.parse(query)
+          cursor.bind_param(':item_id', item_id)
+          cursor.exec()
+          barcode = cursor.fetch.first
+          cursor.close()
+        end
+        barcode
+      end
+
+      def updated_recap_items(date, conn=nil)
+        items = []
+        connection(conn) do |c|
+          query = VoyagerHelpers::Queries.recap_update_bib_items
+          cursor = c.parse(query)
+          cursor.bind_param(':last_diff_date', date)
+          cursor.exec()
+          while row = cursor.fetch
+            items << row.first
+          end
+          cursor.close()
+          query = VoyagerHelpers::Queries.recap_update_holding_items
+          cursor = c.parse(query)
+          cursor.bind_param(':last_diff_date', date)
+          cursor.exec()
+          while row = cursor.fetch
+            items << row.first
+          end
+          cursor.close()
+          query = VoyagerHelpers::Queries.recap_update_item_items
+          cursor = c.parse(query)
+          cursor.bind_param(':last_diff_date', date)
+          cursor.exec()
+          while row = cursor.fetch
+            items << row.first
+          end
+          cursor.close()
+        end
+        items
       end
 
       def valid_ascii(string)
@@ -813,7 +843,7 @@ module VoyagerHelpers
                 {"3"=>item_enum_chron},
                 {"a"=>item[:id].to_s},
                 {"h"=>recap_item_hash[:recap_use_restriction]},
-                {"j"=>item[:status]},
+                {"j"=>item[:status].join(", ")},
                 {"p"=>item[:barcode].to_s},
                 {"t"=>item[:copy_number].to_s},
                 {"x"=>recap_item_hash[:group_designation]},
@@ -829,7 +859,7 @@ module VoyagerHelpers
                 {"0"=>holding_id.to_s},
                 {"3"=>item_enum_chron},
                 {"a"=>item[:id].to_s},
-                {"j"=>item[:status]},
+                {"j"=>item[:status].join(", ")},
                 {"p"=>item[:barcode].to_s},
                 {"t"=>item[:copy_number].to_s}
               ]
