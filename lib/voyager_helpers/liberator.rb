@@ -388,33 +388,9 @@ module VoyagerHelpers
       # @param date [String] in format yyyy-mm-dd hh24:mi:ss.ffffff timezone_hourtimezone_minute (e.g., 2017-04-05 13:50:25.213245 -0400)
       # @return [Array]
       def updated_recap_barcodes(date)
-        items = []
         barcodes = []
         connection do |c|
-          query = VoyagerHelpers::Queries.recap_update_bib_items
-          cursor = c.parse(query)
-          cursor.bind_param(':last_diff_date', date)
-          cursor.exec()
-          while row = cursor.fetch
-            items << row.first
-          end
-          cursor.close()
-          query = VoyagerHelpers::Queries.recap_update_holding_items
-          cursor = c.parse(query)
-          cursor.bind_param(':last_diff_date', date)
-          cursor.exec()
-          while row = cursor.fetch
-            items << row.first
-          end
-          cursor.close()
-          query = VoyagerHelpers::Queries.recap_update_item_items
-          cursor = c.parse(query)
-          cursor.bind_param(':last_diff_date', date)
-          cursor.exec()
-          while row = cursor.fetch
-            items << row.first
-          end
-          cursor.close()
+          items = updated_recap_items(date, c)
           items.each do |item|
             item_statuses = get_item_statuses(item, c)
             unless item_statuses.include?('In Process')
@@ -625,6 +601,37 @@ module VoyagerHelpers
           cursor.close()
         end
         barcode
+      end
+
+      def updated_recap_items(date, conn=nil)
+        items = []
+        connection(conn) do |c|
+          query = VoyagerHelpers::Queries.recap_update_bib_items
+          cursor = c.parse(query)
+          cursor.bind_param(':last_diff_date', date)
+          cursor.exec()
+          while row = cursor.fetch
+            items << row.first
+          end
+          cursor.close()
+          query = VoyagerHelpers::Queries.recap_update_holding_items
+          cursor = c.parse(query)
+          cursor.bind_param(':last_diff_date', date)
+          cursor.exec()
+          while row = cursor.fetch
+            items << row.first
+          end
+          cursor.close()
+          query = VoyagerHelpers::Queries.recap_update_item_items
+          cursor = c.parse(query)
+          cursor.bind_param(':last_diff_date', date)
+          cursor.exec()
+          while row = cursor.fetch
+            items << row.first
+          end
+          cursor.close()
+        end
+        items
       end
 
       def valid_ascii(string)
