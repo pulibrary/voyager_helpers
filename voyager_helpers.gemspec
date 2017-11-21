@@ -19,7 +19,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'rake', '~> 10.0'
   spec.add_development_dependency 'rspec'
 
-  spec.add_dependency 'activesupport', '~> 4.1'
+  spec.add_dependency 'activesupport', '~> 5.1'
   spec.add_dependency 'marc', '~> 1.0'
   spec.add_dependency 'diffy', '~> 3.0.7'
 
