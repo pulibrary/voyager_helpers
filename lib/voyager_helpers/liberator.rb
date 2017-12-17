@@ -88,9 +88,20 @@ module VoyagerHelpers
       # @return [<Hash>]
 
       def get_items_for_holding(mfhd_id, conn=nil)
+        items = []
+        query = VoyagerHelpers::Queries.all_mfhd_items
+        rows = []
         connection(conn) do |c|
-          accumulate_items_for_holding(mfhd_id, c)
+          cursor = c.parse(query)
+          cursor.bind_param(':mfhd_id', mfhd_id)
+          cursor.exec
+          while row = cursor.fetch_hash
+            rows << row
+          end
+          cursor.close
+          items = group_item_info_rows(rows)
         end
+        items
       end
 
       def get_item(item_id, conn=nil)
@@ -694,13 +705,32 @@ module VoyagerHelpers
         stat_codes
       end
 
-      def accumulate_items_for_holding(mfhd_id, conn)
-        items = []
-        item_ids = get_item_ids_for_holding(mfhd_id, conn)
-        item_ids.each do |item_id|
-          items << get_info_for_item(item_id, conn)
+      def group_item_info_rows(rows)
+        final_items = []
+        grouped_items = rows.group_by { |row| row['ITEM_ID'] }
+        grouped_items.each do |pair|
+          statuses = []
+          first_item = pair[1][0]
+          info = {}
+          info[:id] = first_item['ITEM_ID']
+          info[:on_reserve] = first_item['ON_RESERVE']
+          info[:copy_number] = first_item['COPY_NUMBER']
+          info[:item_sequence_number] = first_item['ITEM_SEQUENCE_NUMBER']
+          info[:temp_location] = first_item['TEMP_LOC']
+          info[:perm_location] = first_item['LOCATION_CODE']
+          enum = first_item['ITEM_ENUM']
+          info[:enum] = valid_ascii(enum)
+          chron = first_item['CHRON']
+          info[:chron] = valid_ascii(chron)
+          info[:barcode] = first_item['ITEM_BARCODE']
+          info[:due_date] = first_item['CURRENT_DUE_DATE']
+          pair[1].each do |item|
+            statuses << item['ITEM_STATUS_DESC']
+          end
+          info[:status] = statuses
+          final_items << info
         end
-        items
+        final_items
       end
 
       def get_item_ids_for_holding(mfhd_id, conn)
