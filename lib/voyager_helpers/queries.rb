@@ -239,6 +239,41 @@ module VoyagerHelpers
         )
       end
 
+      def all_mfhd_items
+        %(
+        SELECT
+          item.item_id,
+          item.on_reserve,
+          item.copy_number,
+          item.item_sequence_number,
+          temp_loc.location_code AS temp_loc,
+          perm_loc.location_code,
+          mfhd_item.item_enum,
+          mfhd_item.chron,
+          item_barcode.item_barcode,
+          item_status_type.item_status_desc,
+          circ_transactions.current_due_date
+        FROM item
+          INNER JOIN location perm_loc
+            ON perm_loc.location_id = item.perm_location
+          LEFT JOIN location temp_loc
+            ON temp_loc.location_id = item.temp_location
+          INNER JOIN mfhd_item
+            ON mfhd_item.item_id = item.item_id
+          LEFT JOIN item_barcode
+            ON item_barcode.item_id = item.item_id
+          JOIN item_status
+            ON item.item_id = item_status.item_id
+          JOIN item_status_type
+            ON item_status_type.item_status_type = item_status.item_status
+          LEFT JOIN circ_transactions
+            ON item.item_id = circ_transactions.item_id
+        WHERE mfhd_item.mfhd_id = :mfhd_id AND
+          (item_barcode.barcode_status = 1 OR item_barcode.barcode_status IS NULL)
+        ORDER BY item.item_id
+        )
+      end
+
       def orders
         %Q(
         SELECT
