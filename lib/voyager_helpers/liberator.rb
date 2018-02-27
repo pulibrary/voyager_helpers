@@ -927,7 +927,7 @@ module VoyagerHelpers
           when 'rcppj', 'rcppk', 'rcppl', 'rcppm', 'rcppn', 'rcppt'
             recap_use_restriction = 'In Library Use'
             group_designation = 'Private'
-          when 'rcppb', 'rcpph', 'rcpps', 'rcppw', 'rcppz', 'rcpxc', 'rcpxg', 'rcpxm', 'rcpxn', 'rcpxp', 'rcpxr', 'rcpxx'
+          when 'rcppb', 'rcpph', 'rcpps', 'rcppw', 'rcppz', 'rcpxc', 'rcpxg', 'rcpxm', 'rcpxn', 'rcpxp', 'rcpxr', 'rcpxw', 'rcpxx'
             recap_use_restriction = 'Supervised Use'
             group_designation = 'Private'
           when 'rcpjq', 'rcppe', 'rcppg', 'rcpph', 'rcppq', 'rcpqb', 'rcpql', 'rcpqv', 'rcpqx'
