@@ -54,12 +54,8 @@ module VoyagerHelpers
       private
 
       def ids_to_file(file_handle, query, conn=nil)
-        if conn.nil?
-          connection do |c|
-            exec_ids_to_file(query, file_handle, c)
-          end
-        else
-          exec_ids_to_file(query, file_handle, conn)
+        connection(conn) do |c|
+          exec_ids_to_file(query, file_handle, c)
         end
       end
 

@@ -301,6 +301,16 @@ module VoyagerHelpers
         )
       end
 
+      def bulk_bib(bib_ids)
+        bib_ids = OCI8::in_cond(:bib_ids, bib_ids)
+        %(
+        SELECT record_segment
+        FROM bib_data
+        WHERE bib_id IN (#{bib_ids.names})
+        ORDER BY bib_id, seqnum
+        )
+      end
+
       def bib_id_for_holding_id
         %Q(
         SELECT
@@ -374,19 +384,22 @@ module VoyagerHelpers
         )
       end
 
+      def mfhds_for_bib
+        %Q(
+          SELECT record_segment
+          FROM mfhd_data
+            JOIN bib_mfhd
+              ON mfhd_data.mfhd_id = bib_mfhd.mfhd_id
+          WHERE bib_id = :bib_id
+          ORDER BY bib_mfhd.mfhd_id, seqnum
+        )
+      end
+
       def mfhd_suppressed
         %Q(
           SELECT suppress_in_opac
           FROM mfhd_master
           WHERE mfhd_id=:mfhd_id
-        )
-      end
-
-      def mfhd_ids
-        %Q(
-        SELECT mfhd_id
-        FROM bib_mfhd
-        WHERE bib_id=:bib_id
         )
       end
 
