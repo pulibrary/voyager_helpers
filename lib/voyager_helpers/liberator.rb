@@ -13,10 +13,10 @@ module VoyagerHelpers
       include VoyagerHelpers::OracleConnection
 
       # @param bib_id [Fixnum] A bib record id
-      # @option opts [Boolean] :holdings (true) Include holdings?
-      # @option opts [Boolean] :holdings_in_bib (true) Copy 852 fields to the bib record?
-      # @return [MARC::Record] If `holdings: false` or there are no holdings.
-      # @return [Array<MARC::Record>] If `holdings: true` (default) and there
+      # @option opts [Boolean] :holdings (true) (default) Include holdings?
+      # @option opts [Boolean] :holdings_in_bib (true) (default) Copy 852 fields to the bib record?
+      # @return [MARC::Record] If `holdings: false`, there are no holdings, or `holdings_in_bib: true`.
+      # @return [Array<MARC::Record>] If `holdings: true`, `holdings_in_bib: false`, and there
       #   are holdings.
       def get_bib_record(bib_id, conn=nil, opts={})
         connection(conn) do |c|
@@ -28,6 +28,34 @@ module VoyagerHelpers
             end
           end
         end
+      end
+
+      # @param bib_ids [Array<Fixnum>] An array of bib record ids.
+      # @option opts [Boolean] :holdings_in_bib (true) (default)
+      #   Include holdings and copy 852 fields to the bib records?
+      # @return [Array<MARC::Record>], a collection of MARC records.
+      # Must process the record ids in batches of 1,000
+      #   due to Oracle constraints.
+      def get_bib_collection(bib_ids, conn=nil, opts = {})
+        bibs = []
+        total_chunks = (bib_ids.size/1000.0).ceil
+        connection(conn) do |c|
+          1.upto(total_chunks) do |chunk|
+            id_segment = bib_ids.slice(1000*(chunk-1), 1000)
+            if opts.fetch(:holdings, true)
+              coll = get_bib_coll_with_holdings(id_segment, c)
+              coll.each do |record|
+                bibs << record
+              end
+            else
+              coll = get_bib_coll_without_holdings(id_segment, c)
+              coll.each do |record|
+                bibs << record
+              end
+            end
+          end
+        end
+        bibs
       end
 
       def get_bib_update_date(bib_id, conn=nil)
@@ -69,11 +97,22 @@ module VoyagerHelpers
       # @return [Array<MARC::Record>]
       def get_holding_records(bib_id, conn=nil)
         records = []
+        query = VoyagerHelpers::Queries.mfhds_for_bib
+        segments = []
         connection(conn) do |c|
-          get_bib_mfhd_ids(bib_id, c).each do |mfhd_id|
-            record = get_holding_record(mfhd_id, c)
-            records << record unless record.nil?
+          cursor = c.parse(query)
+          cursor.bind_param(':bib_id', bib_id)
+          cursor.exec
+          while row = cursor.fetch
+            segments << row.first
           end
+          cursor.close
+        end
+        return segments if segments.empty?
+        raw_marc = segments.join('')
+        reader = MARC::Reader.new(StringIO.new(raw_marc, 'r'), external_encoding: 'UTF-8', invalid: :replace, replace: '')
+        reader.each do |record|
+          records << record
         end
         records
       end
@@ -314,15 +353,17 @@ module VoyagerHelpers
         courses
       end
 
-      def dump_bibs_to_file(ids, file_name, opts={})
+      def dump_bibs_to_file(ids, file_name)
         writer = MARC::XMLWriter.new(file_name)
         connection do |c|
-          ids.each do |id|
-            r = VoyagerHelpers::Liberator.get_bib_record(id, c)
-            writer.write(r) unless r.nil?
+          records = get_bib_collection(ids, c)
+          unless records.empty?
+            records.each do |record|
+              writer.write(record)
+            end
           end
         end
-        writer.close()
+        writer.close
       end
 
       def dump_merged_records_to_file(barcodes, file_name, recap=false)
@@ -753,6 +794,13 @@ module VoyagerHelpers
         MARC::Reader.decode(segments.join(''), :external_encoding => "UTF-8", :invalid => :replace, :replace => '') unless segments.empty?
       end
 
+      def get_bib_coll_without_holdings(bib_ids, conn=nil)
+        segments = get_bib_coll_segments(bib_ids, conn)
+        return nil if segments.empty?
+        raw_marc = segments.join('')
+        MARC::Reader.new(StringIO.new(raw_marc, 'r'), external_encoding: 'UTF-8', invalid: :replace, replace: '')
+      end
+
       def get_bib_with_holdings(bib_id, conn=nil, opts={})
         bib = get_bib_without_holdings(bib_id, conn)
         unless bib.nil?
@@ -763,6 +811,21 @@ module VoyagerHelpers
             [bib,holdings].flatten!
           end
         end
+      end
+
+      def get_bib_coll_with_holdings(bib_ids, conn=nil)
+        bibs = get_bib_coll_without_holdings(bib_ids, conn)
+        return bibs if bibs.nil?
+        raw_marc = ''
+        writer = MARC::Writer.new(StringIO.new(raw_marc, 'w'))
+        bibs.each do |bib|
+          bib_id = bib['001'].value.to_i
+          holdings = get_holding_records(bib_id, conn)
+          merged = merge_holdings_info(bib, holdings, conn)
+          writer.write(merged)
+        end
+        writer.close
+        MARC::Reader.new(StringIO.new(raw_marc, 'r'), external_encoding: 'UTF-8', invalid: :replace, replace: '')
       end
 
       # Removes bib 852s and 86Xs, adds 852s, 856s, and 86Xs from holdings, adds 959 catalog date
@@ -946,6 +1009,17 @@ module VoyagerHelpers
         segments(query, bib_id, conn)
       end
 
+      def get_bib_coll_segments(bib_ids, conn = nil)
+        query = VoyagerHelpers::Queries.bulk_bib(bib_ids)
+        segments = []
+        connection(conn) do |c|
+          c.exec(query, *bib_ids) do |row|
+            segments << row.first
+          end
+        end
+        segments
+      end
+
       def get_mfhd_segments(mfhd_id, conn=nil)
         query = VoyagerHelpers::Queries.mfhd
         segments(query, mfhd_id, conn)
@@ -963,27 +1037,6 @@ module VoyagerHelpers
           cursor.close()
         end
         segments
-      end
-
-      def get_bib_mfhd_ids(bib_id, conn=nil)
-        query = VoyagerHelpers::Queries.mfhd_ids
-        connection(conn) do |c|
-          exec_get_bib_mfhd_ids(query, bib_id, c)
-        end
-      end
-
-      def exec_get_bib_mfhd_ids(query, bib_id, conn)
-        ids = []
-        connection(conn) do |c|
-          cursor = c.parse(query)
-          cursor.bind_param(':bib_id', bib_id)
-          cursor.exec()
-          while row = cursor.fetch
-            ids << row.first
-          end
-          cursor.close()
-        end
-        ids
       end
 
       def determine_id_type(patron_id)
