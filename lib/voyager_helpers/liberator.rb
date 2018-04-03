@@ -130,17 +130,16 @@ module VoyagerHelpers
           items = []
           mfhds = get_holding_records(bib_id, c)
           mfhds.each do |mfhd|
-            mfhd_hash = mfhd.to_hash
-            mfhd_id = id_from_mfhd_hash(mfhd_hash)
+            mfhd_id = mfhd['001'].value.to_i
             holding_items = get_items_for_holding(mfhd_id, c)
             unless holding_items.empty?
               any_items = true
-              data = { holding_id: mfhd_id.to_i }
+              data = { holding_id: mfhd_id }
               # Everyone seems quite sure that we don't repeat 852 per mfhd
-              field_852 = fields_from_marc_hash(mfhd_hash, '852').first['852']
-              data[:perm_location] = location_from_852(field_852)
+              field_852 = mfhd['852']
+              data[:perm_location] = field_852.nil? ? '' : field_852['b']
               data[:call_number] = callno_from_852(field_852)
-              notes = holdings_notes_from_mfhd_hash(mfhd_hash)
+              notes = holdings_notes_from_mfhd(mfhd)
               data[:notes] = notes unless notes.empty?
               data[:items] = []
               holding_items.each do |item|
@@ -175,20 +174,19 @@ module VoyagerHelpers
             availability[bib_id] = {}
             mfhds = get_holding_records(bib_id, c)
             mfhds[number_of_mfhds].each do |mfhd|
-              mfhd_hash = mfhd.to_hash
-              mfhd_id = id_from_mfhd_hash(mfhd_hash)
-              field_852 = fields_from_marc_hash(mfhd_hash, '852').first['852']
-              field_852 = location_from_852(field_852)
+              mfhd_id = mfhd['001'].value.to_i
+              location = mfhd['852'].nil? ? '' : mfhd['852']['b']
               holding_item_ids = get_item_ids_for_holding(mfhd_id, c)
 
               availability[bib_id][mfhd_id] = {} # holding record availability hash
               availability[bib_id][mfhd_id][:more_items] = holding_item_ids.count > 1
-              availability[bib_id][mfhd_id][:location] = field_852
+              availability[bib_id][mfhd_id][:location] = location
 
               availability[bib_id][mfhd_id][:status] = if holding_item_ids.empty?
-                if !(order_status = get_order_status(mfhd_id)).nil?
+                order_status = get_order_status(mfhd_id, c)
+                if order_status
                   order_status
-                elsif field_852[/^elf/]
+                elsif location =~ /^elf/
                   'Online'
                 else
                   'On Shelf'
@@ -363,9 +361,9 @@ module VoyagerHelpers
       # @param mfhd_id [Fixnum] Find order status for provided mfhd ID
       # @return [String] on-order status message and date of status if the status code in whitelist
       # if code is not whitelisted return nil
-      def get_order_status(mfhd_id)
+      def get_order_status(mfhd_id, conn=nil)
         status = nil
-        unless (orders = get_orders(mfhd_id)).empty?
+        unless (orders = get_orders(mfhd_id, conn)).empty?
           latest_order = orders.max { |a,b| a[:date] <=> b[:date] }
           po_status, li_status = latest_order[:po_status], latest_order[:li_status]
           if on_order?(po_status, li_status)
@@ -447,46 +445,29 @@ module VoyagerHelpers
         hsh
       end
 
-      # Note that the hash is the result of calling `to_hash`, not `to_marchash`
-      def fields_from_marc_hash(hsh, codes)
-        codes = [codes] if codes.kind_of? String
-        hsh['fields'].select { |f| codes.include?(f.keys.first) }
-      end
-
       def subfields_from_field(field, codes)
         codes = [codes] if codes.kind_of? String
-        field['subfields'].select { |s| codes.include?(s.keys.first) }
+        field.subfields.select { |s| codes.include?(s.code) }
       end
 
-      def id_from_mfhd_hash(hsh)
-        hsh['fields'].select { |f| f.has_key?('001') }.first['001']
-      end
-
-      def holdings_notes_from_mfhd_hash(hsh)
+      def holdings_notes_from_mfhd(mfhd)
         notes = []
-        f866_arr = fields_from_marc_hash(hsh, '866')
+        f866_arr = mfhd.fields('866')
         f866_arr.each do |f|
-          text_holdings = subfields_from_field(f['866'], 'a')
-          public_note = subfields_from_field(f['866'], 'z')
-          notes << text_holdings.first['a'] unless text_holdings.empty?
-          notes << public_note.first['z'] unless public_note.empty?
+          text_holdings = f['866']['a']
+          public_note = f['866']['z']
+          notes << text_holdings unless text_holdings.empty?
+          notes << public_note unless public_note.empty?
         end
         notes
       end
 
-      def callno_from_852(hsh_852)
-        subfields = hsh_852.fetch('subfields', {})
-        vals = subfields_from_field(hsh_852, ['h','i'])
-        parts = []
-        subfields_from_field(hsh_852, ['h','i']).each do |sf|
-          parts << sf.values()
-        end
-        parts.flatten.join (' ')
-      end
-
-      def location_from_852(hsh_852)
-        subfields = hsh_852.fetch('subfields', {})
-        subfields_from_field(hsh_852, 'b').first['b']
+      def callno_from_852(field_852)
+        call_no = field_852['h']
+        return call_no if call_no.nil?
+        call_no << ' ' + field_852['i'] if field_852['i']
+        call_no.gsub!(/^[[:blank:]]+(.*)$/, '\1')
+        call_no
       end
 
       # @param mfhd_id [Fixnum] A mfhd record id
@@ -499,7 +480,7 @@ module VoyagerHelpers
           cursor.bind_param(':mfhd_id', mfhd_id)
           cursor.exec()
           while row = cursor.fetch
-            date = row[2].to_datetime unless date.nil?
+            date = row[2] ? row[2].to_datetime : row[2]
             statuses << { po_status: row.shift,
                         li_status: row.shift,
                         date: date }
@@ -777,36 +758,30 @@ module VoyagerHelpers
         unless bib.nil?
           holdings = get_holding_records(bib_id, conn)
           if opts.fetch(:holdings_in_bib, true)
-            merge_holdings_into_bib(bib, holdings, conn)
+            merge_holdings_info(bib, holdings, conn)
           else
             [bib,holdings].flatten!
           end
         end
       end
 
+      # Removes bib 852s and 86Xs, adds 852s, 856s, and 86Xs from holdings, adds 959 catalog date
       def merge_holdings_info(bib, holdings, conn=nil)
-        record_hash = bib.to_hash
-        record_hash['fields'].delete_if { |f| ['852', '866', '867', '868'].any? { |key| f.has_key?(key) } }
+        merged_bib = bib
+        merged_bib.fields.delete_if { |f| ['852', '866', '867', '868'].include? f.tag }
         unless holdings.empty?
           holdings.each do |holding|
-            holding.to_hash['fields'].select { |h| ['852', '856', '866', '867', '868'].any? { |key| h.has_key?(key) } }.each do |h|
-              key, _value = h.first # marc field hashes have only one key, which is the tag number
-              h[key]['subfields'].unshift({"0"=>holding['001'].value})
-              record_hash['fields'] << h
+            holding.fields.each_by_tag(['852', '856', '866', '867', '868']) do |field|
+              field.subfields.unshift(MARC::Subfield.new('0', holding['001'].value))
+              merged_bib.append(field)
             end
           end
           catalog_date = get_catalog_date(bib['001'].value, holdings, conn)
           unless catalog_date.nil?
-            record_hash['fields'] << {"959"=>{"ind1"=>" ", "ind2"=>" ", "subfields"=>[{"a"=>catalog_date.to_s}]}}
+            merged_bib.append(MARC::DataField.new('959', ' ', ' ', ['a', catalog_date.to_s]))
           end
         end
-        record_hash
-      end
-
-      # Removes bib 852s and 86Xs, adds 852s, 856s, and 86Xs from holdings, adds 959 catalog date
-      def merge_holdings_into_bib(bib, holdings, conn=nil)
-        record_hash = merge_holdings_info(bib, holdings, conn)
-        MARC::Record.new_from_hash(record_hash)
+        merged_bib
       end
 
       def get_catalog_date(bib_id, holdings, conn=nil)
@@ -838,8 +813,8 @@ module VoyagerHelpers
 
       def merge_holding_item_into_bib(bib, holding, item, recap=false, conn=nil)
         holdings = [holding]
-        record_hash = merge_holdings_info(bib, holdings, conn)
-        record_hash['fields'].delete_if { |f| ['876'].any? { |key| f.has_key?(key) } }
+        merged_bib = merge_holdings_info(bib, holdings, conn)
+        merged_bib.fields.delete_if { |f| f.tag == '876' }
         holding_id = holding['001'].value
         holding_location = holding['852']['b']
         item_enum_chron = nil
@@ -852,51 +827,36 @@ module VoyagerHelpers
           item_enum_chron = item[:chron]
         end
         if recap && holding_location =~ /^rcp[a-z]{2}$/
-          call_no = ''
-          call_no << holding['852']['h'] unless holding['852']['h'].nil?
-          call_no << " #{holding['852']['i']}" unless holding['852']['i'].nil?
-          call_no.gsub!(/^[[:blank:]]+(.*)$/, '\1')
+          call_no = callno_from_852(holding['852'])
           recap_item_hash = recap_item_info(holding_location)
-          record_hash['fields'].delete_if { |f| ['852'].any? { |key| f.has_key?(key) } }
-          holding.to_hash['fields'].select { |h| ['852'].any? { |key| h.has_key?(key) } }.each do |h|
-            key, _value = h.first
-            h[key]['subfields'].delete_if { |s| ['h', 'i'].any? { |key| s.has_key?(key) } }
-            h[key]['subfields'].unshift({"0"=>holding_id})
-            h[key]['subfields'].insert(2, {"h"=>call_no})
-            record_hash['fields'] << h
-          end
-          record_hash['fields'] << {"876"=>
-            {"ind1"=>"0", "ind2"=>"0",
-            "subfields"=>
-              [
-                {"0"=>holding_id.to_s},
-                {"3"=>item_enum_chron},
-                {"a"=>item[:id].to_s},
-                {"h"=>recap_item_hash[:recap_use_restriction]},
-                {"j"=>item[:status].join(", ")},
-                {"p"=>item[:barcode].to_s},
-                {"t"=>item[:copy_number].to_s},
-                {"x"=>recap_item_hash[:group_designation]},
-                {"z"=>recap_item_hash[:customer_code]}
-              ]
-            }
-          }
+          merged_bib.fields.delete_if { |f| f.tag == '852' }
+          f852 = holding['852']
+          f852.subfields.delete_if { |s| ['h', 'i'].include? s.code }
+          f852.subfields.unshift(MARC::Subfield.new('0', holding['001'].value))
+          f852.append(MARC::Subfield.new('h', call_no))
+          merged_bib.append(f852)
+          merged_bib.append(MARC::DataField.new('876', '0', '0',
+            MARC::Subfield.new('0', holding_id.to_s),
+            MARC::Subfield.new('3', item_enum_chron),
+            MARC::Subfield.new('a', item[:id].to_s),
+            MARC::Subfield.new('h', recap_item_hash[:recap_use_restriction]),
+            MARC::Subfield.new('j', item[:status].join(', ')),
+            MARC::Subfield.new('p', item[:barcode].to_s),
+            MARC::Subfield.new('t', item[:copy_number].to_s),
+            MARC::Subfield.new('x', recap_item_hash[:group_designation]),
+            MARC::Subfield.new('z', recap_item_hash[:customer_code]))
+          )
         else
-          record_hash['fields'] << {"876"=>
-            {"ind1"=>"0", "ind2"=>"0",
-            "subfields"=>
-              [
-                {"0"=>holding_id.to_s},
-                {"3"=>item_enum_chron},
-                {"a"=>item[:id].to_s},
-                {"j"=>item[:status].join(", ")},
-                {"p"=>item[:barcode].to_s},
-                {"t"=>item[:copy_number].to_s}
-              ]
-            }
-          }
+          merged_bib.append(MARC::DataField.new('876', '0', '0',
+            MARC::Subfield.new('0', holding_id.to_s),
+            MARC::Subfield.new('3', item_enum_chron),
+            MARC::Subfield.new('a', item[:id].to_s),
+            MARC::Subfield.new('j', item[:status].join(', ')),
+            MARC::Subfield.new('p', item[:barcode].to_s),
+            MARC::Subfield.new('t', item[:copy_number].to_s))
+          )
         end
-        MARC::Record.new_from_hash(record_hash)
+        merged_bib
       end
 
       def single_record_from_barcode (bib_id, mfhd_id, item_id, recap=false, conn=nil)
@@ -940,10 +900,8 @@ module VoyagerHelpers
 
       def electronic_resource?(holdings, conn=nil)
         holdings.each do |mfhd|
-          mfhd_hash = mfhd.to_hash
-          field_852 = fields_from_marc_hash(mfhd_hash, '852').first['852']
-          online = location_from_852(field_852).start_with?('elf')
-          return true if online
+          next unless mfhd['852']
+          return true if mfhd['852']['b'] =~ /^elf/
         end
         false
       end
@@ -975,7 +933,7 @@ module VoyagerHelpers
       def get_earliest_item_date(holdings, conn=nil)
         item_ids = []
         holdings.each do |mfhd|
-          mfhd_id = id_from_mfhd_hash(mfhd.to_hash)
+          mfhd_id = mfhd['001'].value
           item_ids << get_item_ids_for_holding(mfhd_id, conn)
         end
         dates = []

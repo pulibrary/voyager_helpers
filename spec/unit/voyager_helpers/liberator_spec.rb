@@ -291,12 +291,11 @@ describe VoyagerHelpers::Liberator do
       let(:cat_date) { "2014-02-07 09:34:47 -0500" }
       it 'merges mfhd information into a bib record and adds catalog date' do
         allow(described_class).to receive(:get_catalog_date).and_return(cat_date)
-        record_hash = described_class.send(:merge_holdings_info, norm_bib_record, [norm_mfhd_record])
-        record_marc = MARC::Record.new_from_hash(record_hash)
-        expect(record_marc['852']['0']).to eq norm_mfhd_id
-        expect(record_marc['852']['h']).to eq 'PS3561.R2873'
-        expect(record_marc['852']['i']).to eq 'A68 2013'
-        expect(record_marc['959']['a']).to eq cat_date
+        record = described_class.send(:merge_holdings_info, norm_bib_record, [norm_mfhd_record])
+        expect(record['852']['0']).to eq norm_mfhd_id
+        expect(record['852']['h']).to eq 'PS3561.R2873'
+        expect(record['852']['i']).to eq 'A68 2013'
+        expect(record['959']['a']).to eq cat_date
       end
     end
     describe '#merge_holding_item_into_bib' do
@@ -372,7 +371,7 @@ describe VoyagerHelpers::Liberator do
                             }}
       context 'non-ReCAP item, ReCAP flag off' do
         it 'retains 852$h and $i and adds item info to 876 without ReCAP-specific fields' do
-          allow(described_class).to receive(:merge_holdings_info).and_return(norm_merged_mfhd_record.to_hash)
+          allow(described_class).to receive(:merge_holdings_info).and_return(norm_merged_mfhd_record)
           full_record = described_class.send(:merge_holding_item_into_bib, norm_bib_record, norm_mfhd_record, norm_item_info)
           expect(full_record['852']['i']).to eq 'A68 2013'
           expect(full_record['876']['0']).to eq norm_mfhd_id
@@ -385,7 +384,7 @@ describe VoyagerHelpers::Liberator do
       end
       context 'non-ReCAP item, multiple item statuses, ReCAP flag off' do
         it 'retains 852$h and $i and adds item info with multiple statuses to 876 without ReCAP-specific fields' do
-          allow(described_class).to receive(:merge_holdings_info).and_return(norm_merged_mfhd_record.to_hash)
+          allow(described_class).to receive(:merge_holdings_info).and_return(norm_merged_mfhd_record)
           full_record = described_class.send(:merge_holding_item_into_bib, norm_bib_record, norm_mfhd_record, multiple_item_statuses)
           expect(full_record['852']['i']).to eq 'A68 2013'
           expect(full_record['876']['0']).to eq norm_mfhd_id
@@ -398,21 +397,21 @@ describe VoyagerHelpers::Liberator do
       end
       context 'non-ReCAP item, ReCAP flag off, enum without chron' do
         it 'has enum in 876$3' do
-          allow(described_class).to receive(:merge_holdings_info).and_return(norm_merged_mfhd_record.to_hash)
+          allow(described_class).to receive(:merge_holdings_info).and_return(norm_merged_mfhd_record)
           full_record = described_class.send(:merge_holding_item_into_bib, norm_bib_record, norm_mfhd_record, item_enum_with_null_chron)
           expect(full_record['876']['3']).to eq 'v.1'
         end
       end
       context 'non-ReCAP item, ReCAP flag off, chron without enum' do
         it 'has chron without parens in 876$3' do
-          allow(described_class).to receive(:merge_holdings_info).and_return(norm_merged_mfhd_record.to_hash)
+          allow(described_class).to receive(:merge_holdings_info).and_return(norm_merged_mfhd_record)
           full_record = described_class.send(:merge_holding_item_into_bib, norm_bib_record, norm_mfhd_record, null_item_enum_with_chron)
           expect(full_record['876']['3']).to eq '1992'
         end
       end
       context 'non-ReCAP item, ReCAP flag on' do
         it 'retains 852$h and $i and adds item info to 876 without ReCAP-specific fields' do
-          allow(described_class).to receive(:merge_holdings_info).and_return(norm_merged_mfhd_record.to_hash)
+          allow(described_class).to receive(:merge_holdings_info).and_return(norm_merged_mfhd_record)
           full_record = described_class.send(:merge_holding_item_into_bib, norm_bib_record, norm_mfhd_record, norm_item_info, recap=true)
           expect(full_record['852']['i']).to eq 'A68 2013'
           expect(full_record['876']['0']).to eq norm_mfhd_id
@@ -425,7 +424,7 @@ describe VoyagerHelpers::Liberator do
       end
       context 'ReCAP item, ReCAP flag on, with enum and chron' do
         it 'merges 852$h and $i into 852 $h and adds ReCAP-specific info to 876' do
-          allow(described_class).to receive(:merge_holdings_info).and_return(recap_merged_mfhd_record.to_hash)
+          allow(described_class).to receive(:merge_holdings_info).and_return(recap_merged_mfhd_record)
           full_record = described_class.send(:merge_holding_item_into_bib, recap_bib_record, recap_mfhd_record, recap_item_info, recap=true)
           expect(full_record['852']['h']).to eq 'BM899.61 .A39 M8'
           expect(full_record['876']['0']).to eq recap_mfhd_id
@@ -439,7 +438,7 @@ describe VoyagerHelpers::Liberator do
       end
       context 'ReCAP item, ReCAP flag off' do
         it 'retains 852$h and $i into 852 $h and does not add ReCAP-specific info to 876' do
-          allow(described_class).to receive(:merge_holdings_info).and_return(recap_merged_mfhd_record.to_hash)
+          allow(described_class).to receive(:merge_holdings_info).and_return(recap_merged_mfhd_record)
           full_record = described_class.send(:merge_holding_item_into_bib, recap_bib_record, recap_mfhd_record, recap_item_info, recap=false)
           expect(full_record['852']['i']).to eq '.A39 M8'
           expect(full_record['876']['0']).to eq recap_mfhd_id
