@@ -43,18 +43,14 @@ module VoyagerHelpers
       def recap_barcode_record_ids
         %Q(
           SELECT
-            bib_item.bib_id,
-            mfhd_item.mfhd_id,
+            bib_mfhd.bib_id,
+            bib_mfhd.mfhd_id,
             item_barcode.item_id
           FROM item_barcode
             JOIN mfhd_item
               ON item_barcode.item_id = mfhd_item.item_id
-            JOIN bib_item
-              ON item_barcode.item_id = bib_item.item_id
-            JOIN mfhd_master
-              ON mfhd_item.mfhd_id = mfhd_master.mfhd_id
-            JOIN bib_master
-              ON bib_item.bib_id = bib_master.bib_id
+            JOIN bib_mfhd
+              ON mfhd_item.mfhd_id = bib_mfhd.mfhd_id
           WHERE
             item_barcode.item_barcode = :barcode
             AND item_barcode.barcode_status = 1
@@ -64,18 +60,18 @@ module VoyagerHelpers
       def barcode_record_ids
         %Q(
           SELECT
-            bib_item.bib_id,
-            mfhd_item.mfhd_id,
+            bib_mfhd.bib_id,
+            bib_mfhd.mfhd_id,
             item_barcode.item_id
           FROM item_barcode
             JOIN mfhd_item
               ON item_barcode.item_id = mfhd_item.item_id
-            JOIN bib_item
-              ON item_barcode.item_id = bib_item.item_id
             JOIN mfhd_master
-              ON mfhd_item.mfhd_id = mfhd_master.mfhd_id
+              ON mfhd_item.item_id = mfhd_master.mfhd_id
+            JOIN bib_mfhd
+              ON mfhd_master.mfhd_id = bib_mfhd.mfhd_id
             JOIN bib_master
-              ON bib_item.bib_id = bib_master.bib_id
+              ON bib_mfhd.bib_id = bib_master.bib_id
           WHERE
             item_barcode.item_barcode = :barcode
             AND bib_master.suppress_in_opac = 'N'
@@ -505,13 +501,18 @@ module VoyagerHelpers
         %Q(
           SELECT
             reserve_list.reserve_list_id,
-            bib_item.bib_id
-          FROM ((reserve_list join
-               reserve_list_items on reserve_list.reserve_list_id = reserve_list_items.reserve_list_id) join
-               bib_item on reserve_list_items.item_id = bib_item.item_id)
+            bib_mfhd.bib_id
+          FROM reserve_list
+            JOIN reserve_list_items
+              ON reserve_list.reserve_list_id = reserve_list_items.reserve_list_id
+            JOIN mfhd_item
+              ON reserve_list_items.item_id = mfhd_item.item_id
+            JOIN bib_mfhd
+              ON mfhd_item.mfhd_id = bib_mfhd.mfhd_id
           WHERE reserve_list.reserve_list_id IN (#{ids.names})
-          GROUP BY reserve_list.reserve_list_id,
-                    bib_item.bib_id
+          GROUP BY
+            reserve_list.reserve_list_id,
+            bib_mfhd.bib_id
         )
       end
 
