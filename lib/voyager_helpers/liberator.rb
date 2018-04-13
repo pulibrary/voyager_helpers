@@ -373,6 +373,27 @@ module VoyagerHelpers
         courses
       end
 
+      # param file_stub [String]
+      # Dumps all bib records to raw MARC21
+      def full_bib_dump(file_stub)
+        connection do |c|
+          last_record = get_max_bib_id(c)
+          last_file_num = (last_record.to_f / 500_000).ceil
+          cursor = c.parse(VoyagerHelpers::Queries.full_bib_dump_query)
+          1.upto(last_file_num) do |file_num|
+            break if file_num > last_file_num
+            File.open("#{file_stub}-#{file_num}.mrc", 'w') do |output|
+              cursor.bind_param(':file_num', file_num)
+              cursor.exec
+              while row = cursor.fetch
+                output.write(row.join(''))
+              end
+            end
+          end
+          cursor.close
+        end
+      end
+
       def dump_bibs_to_file(ids, file_name)
         writer = MARC::XMLWriter.new(file_name)
         connection do |c|
@@ -397,6 +418,40 @@ module VoyagerHelpers
           end
         end
         writer.close()
+      end
+
+      # @param bib_reader [MARC::Reader] merge holdings into a collection of bibs
+      # Dumps merged bibs out to a MARC21 file
+      # Keeps cursor active over all bibs in collection
+      def merge_holdings_into_bibs(bib_reader, file_name, conn = nil)
+        writer = MARC::Writer.new(file_name)
+        connection(conn) do |c|
+          query = VoyagerHelpers::Queries.mfhds_for_bib
+          cursor = c.parse(query)
+          bib_reader.each do |bib|
+            bib_id = bib['001'].value.to_i
+            bib.fields.delete_if { |f| ['852', '866', '867', '868'].include? f.tag }
+            segments = []
+            cursor.bind_param(':bib_id', bib_id)
+            cursor.exec
+            while row = cursor.fetch
+              segments << row.first
+            end
+            unless segments.empty?
+              raw_marc = segments.join('')
+              temp_reader = MARC::Reader.new(StringIO.new(raw_marc, 'r'), external_encoding: 'UTF-8', invalid: :replace, replace: '')
+              temp_reader.each do |holding|
+                holding.fields.each_by_tag(['852', '856', '866', '867', '868']) do |field|
+                  field.subfields.unshift(MARC::Subfield.new('0', holding['001'].value))
+                  bib.append(field)
+                end
+              end
+            end
+            writer.write(bib)
+          end
+          cursor.close
+        end
+        writer.close
       end
 
       # @param patron_id [String] Either a netID, PUID, or PU Barcode
@@ -807,6 +862,15 @@ module VoyagerHelpers
           cursor.close()
         end
         suppressed
+      end
+
+      def get_max_bib_id(conn = nil)
+        connection(conn) do |c|
+          cursor = conn.exec('SELECT MAX(bib_id) FROM bib_master')
+          row = cursor.fetch
+          cursor.close
+          row.first.to_i
+        end
       end
 
       def get_bib_without_holdings(bib_id, conn=nil)
