@@ -95,9 +95,13 @@ module VoyagerHelpers
 
       # @param bib_id [Fixnum] A bib record id
       # @return [Array<MARC::Record>]
-      def get_holding_records(bib_id, conn=nil)
+      def get_holding_records(bib_id, conn=nil, suppressed=false)
         records = []
-        query = VoyagerHelpers::Queries.mfhds_for_bib
+        query = if suppressed
+          VoyagerHelpers::Queries.mfhds_for_bib_supp
+        else
+          VoyagerHelpers::Queries.mfhds_for_bib
+        end
         segments = []
         connection(conn) do |c|
           cursor = c.parse(query)
