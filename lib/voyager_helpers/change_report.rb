@@ -99,7 +99,11 @@ module VoyagerHelpers
         holding_ids.each do |holding_id|
           bib_h = bib_id_for_holding_id(holding_id, c)
           bib_h[:holding_id] = holding_id
-          bib_info << bib_h
+          new_bib_h = bib_h.clone
+          bib_h[:id].each do |id|
+            new_bib_h[:id] = id
+            bib_info << new_bib_h
+          end
         end
       end
       bib_info
@@ -128,9 +132,14 @@ module VoyagerHelpers
         cursor.bind_param(':id', holding_id)
         cursor.exec()
         while row = cursor.fetch
-          data[:id] = row.shift.to_s
+          id = row.shift.to_s
           created = row.shift
           updated = row.shift
+          if data[:id]
+            data[:id] << id
+          else
+            data[:id] = [id]
+          end
           if !updated.nil?
             data[:lastmod] = updated.to_datetime.new_offset(0)
           elsif !created.nil?
