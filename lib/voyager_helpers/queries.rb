@@ -322,6 +322,10 @@ module VoyagerHelpers
             ON bib_mfhd.mfhd_id=:id
         WHERE bib_master.bib_id = bib_mfhd.bib_id
           AND bib_master.suppress_in_opac='N'
+        GROUP BY
+          bib_master.bib_id,
+          bib_master.create_date,
+          bib_master.update_date          
         )
       end
 
