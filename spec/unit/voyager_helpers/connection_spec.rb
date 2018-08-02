@@ -4,7 +4,7 @@ require 'spec_helper'
 # liberation. They are now skipped by `rake ci` and `rake spec`, and can't be
 # run unless the database is configured as described in the README file.
 
-describe 'OCI8', :skip_ci do
+describe 'OCI8', unless: !ENV['CI'].nil? do
 
   let(:holding_id)  { 2281830 }
   let(:item_id)     { 23672 }
