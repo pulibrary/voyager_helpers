@@ -1,9 +1,0 @@
-machine:
-  ruby:
-    version: 2.3.0
-dependencies:
-  bundler:
-    without: [development, production]
-test:
-  override:
-    - bundle exec rspec --color --require spec_helper --tag ~skip_ci --format documentation spec
