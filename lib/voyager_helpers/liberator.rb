@@ -58,6 +58,22 @@ module VoyagerHelpers
         bibs
       end
 
+      # @param timestamp [String] in format yyyy-mm-dd hh24:mi:ss.ffffff timezone_hourtimezone_minute (e.g., 2017-04-05 13:50:25.213245 -0400)
+      # @return [Array]
+      def get_updated_bibs(timestamp, conn=nil)
+        bibs = []
+        query = VoyagerHelpers::Queries.get_updated_bibs
+        connection(conn) do |c|
+          cursor = c.parse(query)
+          cursor.bind_param(':last_diff_date', timestamp)
+          cursor.exec
+          while row = cursor.fetch
+            bibs << row.first
+          end
+        end
+        bibs
+      end
+
       def get_bib_update_date(bib_id, conn=nil)
         query = VoyagerHelpers::Queries.bib_update_date
         connection(conn) do |c|
