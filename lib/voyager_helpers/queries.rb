@@ -154,6 +154,30 @@ module VoyagerHelpers
         )
       end
 
+      def updated_bibs
+        %Q(
+          SELECT bib_master.bib_id
+           FROM bib_master
+            JOIN bib_history
+              ON bib_master.bib_id = bib_history.bib_id
+            JOIN bib_mfhd
+              ON bib_history.bib_id = bib_mfhd.bib_id
+            JOIN mfhd_master
+              ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id
+            JOIN mfhd_history
+              ON mfhd_master.mfhd_id = mfhd_history.mfhd_id
+           WHERE
+            bib_master.suppress_in_opac = 'N'
+            AND mfhd_master.suppress_in_opac = 'N'
+            AND (
+                 (bib_history.action_date > TO_TIMESTAMP_TZ(:last_diff_date, 'YYYY-MM-DD HH24:MI:SS.FF TZHTZM'))
+                 OR (mfhd_history.action_date > TO_TIMESTAMP_TZ(:last_diff_date, 'YYYY-MM-DD HH24:MI:SS.FF TZHTZM'))
+            )
+           GROUP BY bib_master.bib_id
+           ORDER BY bib_master.bib_id ASC
+         )
+      end
+
       def barcode_from_item
         %Q(
           SELECT item_barcode.item_barcode
