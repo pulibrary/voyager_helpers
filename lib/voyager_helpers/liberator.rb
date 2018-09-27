@@ -62,7 +62,7 @@ module VoyagerHelpers
       # @return [Array]
       def get_updated_bibs(timestamp, conn=nil)
         bibs = []
-        query = VoyagerHelpers::Queries.get_updated_bibs
+        query = VoyagerHelpers::Queries.updated_bibs
         connection(conn) do |c|
           cursor = c.parse(query)
           cursor.bind_param(':last_diff_date', timestamp)
