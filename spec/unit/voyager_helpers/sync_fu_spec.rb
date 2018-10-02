@@ -12,7 +12,7 @@ describe VoyagerHelpers::SyncFu do
 
     it 'produces updated and deleted IDs as expected' do
       report = subject.compare_id_dumps(earlier_file, later_file)
-      expected_updated = %w[4 10]
+      expected_updated = %w[3 4 10]
       expected_deleted = %w[7 8]
       expect(report.updated).to eq expected_updated
       expect(report.deleted).to eq expected_deleted

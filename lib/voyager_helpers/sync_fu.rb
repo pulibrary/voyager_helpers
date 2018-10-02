@@ -106,7 +106,7 @@ module VoyagerHelpers
         pluses += grouped['+'].map { |hash| hash[:bib_id] }
         deletes = minuses - pluses - same
         updates = pluses + minuses - deletes
-        { updates: updates.to_a, deletes: deletes.to_a }
+        { updates: updates.to_a.sort_by { |id| id.to_i }, deletes: deletes.to_a.sort_by { |id| id.to_i } }
       end
 
       def grouped_diffs_to_change_report(grouped_diffs)
