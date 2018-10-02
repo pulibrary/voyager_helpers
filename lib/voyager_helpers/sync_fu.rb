@@ -31,10 +31,15 @@ module VoyagerHelpers
         grouped_diffs = group_by_plusminus(diff_hashes)
         grouped_diffs_to_change_report(grouped_diffs)
       end
-        
+
       def bibs_with_holdings_to_file(file_handle, conn=nil)
         query = VoyagerHelpers::Queries.all_unsuppressed_bibs_with_holdings
         merged_ids_to_file(file_handle, query, conn)
+      end
+
+      def bib_ids_to_file(file_handle, conn=nil)
+        query = VoyagerHelpers::Queries.all_unsuppressed_bibs_with_holdings
+        exec_bib_ids_to_file(query, file_handle, conn)
       end
 
       ## For Recap Processing
@@ -51,6 +56,23 @@ module VoyagerHelpers
         end
       end
 
+      def exec_bib_ids_to_file(query, file_handle, conn)
+        connection(conn) do |c|
+          bibs = Set.new
+          cursor = conn.parse(query)
+          cursor.exec
+          while row = cursor.fetch
+            bibs << row[0]
+          end
+          cursor.close
+          File.open(file_handle, 'w') do |f|
+            bibs.each do |id|
+              f.puts(id)
+            end
+          end
+        end
+      end
+
       def exec_merged_ids_to_file(query, file_handle, conn)
         cursor = conn.parse(query)
         cursor.exec
@@ -61,6 +83,7 @@ module VoyagerHelpers
             f.puts("#{bib_id} #{holding_id}")
           end
         end
+        cursor.close
       end
 
       def parse_merged_diff_line_to_hash(line)
