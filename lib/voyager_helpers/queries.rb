@@ -364,6 +364,24 @@ module VoyagerHelpers
         )
       end
 
+      def all_unsuppressed_bibs_with_holdings
+        %Q(
+         SELECT
+           bib_master.bib_id,
+           mfhd_master.mfhd_id
+         FROM bib_master
+           JOIN bib_mfhd
+            ON bib_master.bib_id = bib_mfhd.bib_id
+           JOIN mfhd_master
+            ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id
+         WHERE
+           bib_master.suppress_in_opac = 'N'
+           AND mfhd_master.suppress_in_opac = 'N'
+         ORDER BY
+           bib_master.bib_id ASC, mfhd_master.mfhd_id ASC
+        )
+      end
+
       def bib_create_date
         %Q(
         SELECT
