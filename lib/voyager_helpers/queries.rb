@@ -325,21 +325,6 @@ module VoyagerHelpers
         )
       end
 
-      def full_bib_dump_query
-        %(
-          SELECT record_segment
-          FROM bib_data
-            JOIN bib_master
-              ON bib_data.bib_id = bib_master.bib_id
-          WHERE
-            bib_data.bib_id >= 1+((:file_num-1)*500000)
-            AND bib_data.bib_id <= 500000+((:file_num-1)*500000)
-            AND bib_master.suppress_in_opac = 'N'
-          ORDER BY bib_data.bib_id, seqnum
-        )
-      end
-
-
       def bulk_bib(bib_ids)
         bib_ids = OCI8::in_cond(:bib_ids, bib_ids)
         %(
@@ -364,7 +349,7 @@ module VoyagerHelpers
         GROUP BY
           bib_master.bib_id,
           bib_master.create_date,
-          bib_master.update_date          
+          bib_master.update_date
         )
       end
 

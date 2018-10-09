@@ -389,7 +389,7 @@ module VoyagerHelpers
             bibs = get_bib_coll(bib_ids, c)
             next unless bibs.first
             if opts.fetch(:holdings, true)
-              all_mfhds = get_mfhds_for_bibs(bib_ids, c)
+              all_mfhds = get_mfhds_for_bib_coll(bib_ids, c)
               bibs.each do |bib|
                 next unless bib['001']
                 bib_id = bib['001'].value.to_i
@@ -836,15 +836,6 @@ module VoyagerHelpers
           cursor.close()
         end
         suppressed
-      end
-
-      def get_max_bib_id(conn = nil)
-        connection(conn) do |c|
-          cursor = conn.exec('SELECT MAX(bib_id) FROM bib_master')
-          row = cursor.fetch
-          cursor.close
-          row.first.to_i
-        end
       end
 
       def get_bib_without_holdings(bib_id, conn=nil)
