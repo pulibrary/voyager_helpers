@@ -30,34 +30,6 @@ module VoyagerHelpers
         end
       end
 
-      # @param bib_ids [Array<Fixnum>] An array of bib record ids.
-      # @option opts [Boolean] :holdings_in_bib (true) (default)
-      #   Include holdings and copy 852 fields to the bib records?
-      # @return [Array<MARC::Record>], a collection of MARC records.
-      # Must process the record ids in batches of 1,000
-      #   due to Oracle constraints.
-      def get_bib_collection(bib_ids, conn=nil, opts = {})
-        bibs = []
-        total_chunks = (bib_ids.size/1000.0).ceil
-        connection(conn) do |c|
-          1.upto(total_chunks) do |chunk|
-            id_segment = bib_ids.slice(1000*(chunk-1), 1000)
-            if opts.fetch(:holdings, true)
-              coll = get_bib_coll_with_holdings(id_segment, c)
-              coll.each do |record|
-                bibs << record
-              end
-            else
-              coll = get_bib_coll_without_holdings(id_segment, c)
-              coll.each do |record|
-                bibs << record
-              end
-            end
-          end
-        end
-        bibs
-      end
-
       # @param timestamp [String] in format yyyy-mm-dd hh24:mi:ss.ffffff timezone_hourtimezone_minute (e.g., 2017-04-05 13:50:25.213245 -0400)
       # @return [Array]
       def get_updated_bibs(timestamp, conn=nil)
@@ -72,6 +44,20 @@ module VoyagerHelpers
           end
         end
         bibs
+      end
+
+      def get_all_bib_ids(conn = nil)
+        bib_ids = []
+        query = VoyagerHelpers::Queries.all_unsuppressed_bib_ids
+        connection(conn) do |c|
+          cursor = c.parse(query)
+          cursor.exec
+          while row = cursor.fetch
+            bib_ids << row.first
+          end
+          cursor.close
+        end
+        bib_ids
       end
 
       def get_bib_update_date(bib_id, conn=nil)
@@ -373,34 +359,56 @@ module VoyagerHelpers
         courses
       end
 
-      # param file_stub [String]
-      # Dumps all bib records to raw MARC21
-      def full_bib_dump(file_stub)
+      # param file_stub [String] Filename pattern
+      # param slice_size [Int] How many records per file
+      # param opts [Hash] Supply holdings => false if a dump without
+      # merged holdings is wanted
+      # Dumps all bib records with merged holdings to MARC21
+      def full_bib_dump(file_stub, slice_size, opts={})
         connection do |c|
-          last_record = get_max_bib_id(c)
-          last_file_num = (last_record.to_f / 500_000).ceil
-          cursor = c.parse(VoyagerHelpers::Queries.full_bib_dump_query)
-          1.upto(last_file_num) do |file_num|
-            break if file_num > last_file_num
-            File.open("#{file_stub}-#{file_num}.mrc", 'w') do |output|
-              cursor.bind_param(':file_num', file_num)
-              cursor.exec
-              while row = cursor.fetch
-                output.write(row.join(''))
-              end
-            end
+          all_bibs = get_all_bib_ids(c)
+          file_num = 1
+          all_bibs.each_slice(slice_size) do |bib_slice|
+            file_name = "#{file_stub}-#{file_num}.mrc"
+            dump_bibs_to_file(bib_slice, file_name, c, opts)
+            file_num += 1
           end
-          cursor.close
         end
       end
 
-      def dump_bibs_to_file(ids, file_name)
-        writer = MARC::XMLWriter.new(file_name)
-        connection do |c|
-          records = get_bib_collection(ids, c)
-          unless records.empty?
-            records.each do |record|
-              writer.write(record)
+      # param ids [Array] Array of bib IDs
+      # param opts [Hash] Supply holdings => false if records without
+      # merged holdings are wanted
+      # It is possible that some MARC records will be oversized, due to adding in fields;
+      # MARC::ForgivingReader should be used for methods that read in these files
+      def dump_bibs_to_file(ids, file_name, conn=nil, opts={})
+        writer = MARC::Writer.new(file_name)
+        writer.allow_oversized = true
+        connection(conn) do |c|
+          ids.each_slice(1000) do |bib_ids|
+            bibs = get_bib_coll(bib_ids, c)
+            next unless bibs.first
+            if opts.fetch(:holdings, true)
+              all_mfhds = get_mfhds_for_bibs(bib_ids, c)
+              bibs.each do |bib|
+                next unless bib['001']
+                bib_id = bib['001'].value.to_i
+                mfhds = all_mfhds[bib_id]
+                unless mfhds.nil?
+                  mfhd_reader = MARC::Reader.new(StringIO.new(mfhds, 'r'), external_encoding: 'UTF-8', invalid: :replace, replace: '')
+                  mfhd_reader.each do |holding|
+                    holding.fields.each_by_tag(['852', '856', '866', '867', '868']) do |field|
+                      field.subfields.unshift(MARC::Subfield.new('0', holding['001'].value))
+                      bib.append(field)
+                    end
+                  end
+                end
+                writer.write(bib)
+              end
+            else
+              bibs.each do |bib|
+                writer.write(bib)
+              end
             end
           end
         end
@@ -418,40 +426,6 @@ module VoyagerHelpers
           end
         end
         writer.close()
-      end
-
-      # @param bib_reader [MARC::Reader] merge holdings into a collection of bibs
-      # Dumps merged bibs out to a MARC21 file
-      # Keeps cursor active over all bibs in collection
-      def merge_holdings_into_bibs(bib_reader, file_name, conn = nil)
-        writer = MARC::Writer.new(file_name)
-        connection(conn) do |c|
-          query = VoyagerHelpers::Queries.mfhds_for_bib
-          cursor = c.parse(query)
-          bib_reader.each do |bib|
-            bib_id = bib['001'].value.to_i
-            bib.fields.delete_if { |f| ['852', '866', '867', '868'].include? f.tag }
-            segments = []
-            cursor.bind_param(':bib_id', bib_id)
-            cursor.exec
-            while row = cursor.fetch
-              segments << row.first
-            end
-            unless segments.empty?
-              raw_marc = segments.join('')
-              temp_reader = MARC::Reader.new(StringIO.new(raw_marc, 'r'), external_encoding: 'UTF-8', invalid: :replace, replace: '')
-              temp_reader.each do |holding|
-                holding.fields.each_by_tag(['852', '856', '866', '867', '868']) do |field|
-                  field.subfields.unshift(MARC::Subfield.new('0', holding['001'].value))
-                  bib.append(field)
-                end
-              end
-            end
-            writer.write(bib)
-          end
-          cursor.close
-        end
-        writer.close
       end
 
       # @param patron_id [String] Either a netID, PUID, or PU Barcode
@@ -878,7 +852,7 @@ module VoyagerHelpers
         MARC::Reader.decode(segments.join(''), :external_encoding => "UTF-8", :invalid => :replace, :replace => '') unless segments.empty?
       end
 
-      def get_bib_coll_without_holdings(bib_ids, conn=nil)
+      def get_bib_coll(bib_ids, conn=nil)
         segments = get_bib_coll_segments(bib_ids, conn)
         return nil if segments.empty?
         raw_marc = segments.join('')
@@ -897,19 +871,22 @@ module VoyagerHelpers
         end
       end
 
-      def get_bib_coll_with_holdings(bib_ids, conn=nil)
-        bibs = get_bib_coll_without_holdings(bib_ids, conn)
-        return bibs if bibs.nil?
-        raw_marc = ''
-        writer = MARC::Writer.new(StringIO.new(raw_marc, 'w'))
-        bibs.each do |bib|
-          bib_id = bib['001'].value.to_i
-          holdings = get_holding_records(bib_id, conn)
-          merged = merge_holdings_info(bib, holdings, conn)
-          writer.write(merged)
+      def get_mfhds_for_bib_coll(bib_ids, conn = nil)
+        query = VoyagerHelpers::Queries.mfhds_for_bibs(bib_ids)
+        segments = []
+        connection(conn) do |c|
+          c.exec(query, *bib_ids) do |row|
+            segments << { bib_id: row[0], mfhd_data: row[1] }
+          end
         end
-        writer.close
-        MARC::Reader.new(StringIO.new(raw_marc, 'r'), external_encoding: 'UTF-8', invalid: :replace, replace: '')
+        mfhds_with_keys = segments.group_by { |segment| segment[:bib_id] }
+        mfhd_collection ={}
+        mfhds_with_keys.each do |key, value|
+          bib_id = key
+          mfhd_segments = value.map { |hash| hash[:mfhd_data] }
+          mfhd_collection[bib_id] = mfhd_segments.join('')
+        end
+        mfhd_collection
       end
 
       # Removes bib 852s and 86Xs, adds 852s, 856s, and 86Xs from holdings, adds 959 catalog date
@@ -1136,3 +1113,4 @@ module VoyagerHelpers
     end # class << self
   end # class Liberator
 end # module VoyagerHelpers
+                                 
