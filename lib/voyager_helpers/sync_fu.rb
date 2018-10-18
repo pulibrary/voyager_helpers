@@ -38,7 +38,7 @@ module VoyagerHelpers
       end
 
       def bib_ids_to_file(file_handle, conn=nil)
-        query = VoyagerHelpers::Queries.all_unsuppressed_bibs_with_holdings
+        query = VoyagerHelpers::Queries.all_unsuppressed_bib_ids
         exec_bib_ids_to_file(query, file_handle, conn)
       end
 
@@ -58,7 +58,7 @@ module VoyagerHelpers
 
       def exec_bib_ids_to_file(query, file_handle, conn)
         connection(conn) do |c|
-          bibs = Set.new
+          bibs = []
           cursor = conn.parse(query)
           cursor.exec
           while row = cursor.fetch

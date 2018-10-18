@@ -349,18 +349,24 @@ module VoyagerHelpers
         GROUP BY
           bib_master.bib_id,
           bib_master.create_date,
-          bib_master.update_date          
+          bib_master.update_date
         )
       end
 
-      def all_unsupressed_bib_ids
+      def all_unsuppressed_bib_ids
         %Q(
-        SELECT
-          bib_id,
-          create_date,
-          update_date
-        FROM bib_master
-        WHERE bib_master.suppress_in_opac='N'
+          SELECT
+            bib_master.bib_id
+          FROM bib_master
+            JOIN bib_mfhd
+              ON bib_master.bib_id = bib_mfhd.bib_id
+            JOIN mfhd_master
+              ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id
+          WHERE
+            bib_master.suppress_in_opac = 'N'
+            AND mfhd_master.suppress_in_opac = 'N'
+          GROUP BY bib_master.bib_id
+          ORDER BY bib_master.bib_id ASC
         )
       end
 
@@ -428,6 +434,24 @@ module VoyagerHelpers
         SELECT record_segment FROM mfhd_data
         WHERE mfhd_id=:id
         ORDER BY seqnum
+        )
+      end
+
+      def mfhds_for_bibs(bib_ids)
+        bib_ids = OCI8::in_cond(:bib_ids, bib_ids)
+        %Q(
+          SELECT
+           bib_mfhd.bib_id,
+           record_segment
+           FROM mfhd_data
+            JOIN bib_mfhd
+              ON mfhd_data.mfhd_id = bib_mfhd.mfhd_id
+            JOIN mfhd_master
+              ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id
+          WHERE
+           bib_id IN (#{bib_ids.names})
+           AND mfhd_master.suppress_in_opac = 'N'
+           ORDER BY bib_mfhd.mfhd_id, seqnum
         )
       end
 
