@@ -101,12 +101,14 @@ module VoyagerHelpers
         same = Set.new
         minuses = Set.new
         pluses = Set.new
-        same += grouped[' '].map { |hash| hash[:bib_id] }
-        minuses += grouped['-'].map { |hash| hash[:bib_id] }
-        pluses += grouped['+'].map { |hash| hash[:bib_id] }
-        deletes = minuses - pluses - same
-        updates = pluses + minuses - deletes
-        { updates: updates.to_a.sort_by { |id| id.to_i }, deletes: deletes.to_a.sort_by { |id| id.to_i } }
+        same += grouped[' '].map { |hash| hash[:bib_id] } if grouped[' ']
+        minuses += grouped['-'].map { |hash| hash[:bib_id] } if grouped['-']
+        pluses += grouped['+'].map { |hash| hash[:bib_id] } if grouped['+']
+        deletes = (minuses - pluses - same).to_a
+        updates = (pluses + minuses - deletes).to_a
+        deletes = deletes.sort_by { |id| id.to_i } unless deletes.empty?
+        updates = updates.sort_by { |id| id.to_i } unless updates.empty?
+        { updates: updates, deletes: deletes }
       end
 
       def grouped_diffs_to_change_report(grouped_diffs)
