@@ -402,6 +402,10 @@ module VoyagerHelpers
                       bib.append(field)
                     end
                   end
+                  if opts.fetch(:cat_date, false)
+                    cat_date = get_catalog_date(bib_id, mfhds, c)
+                    bib.append(MARC::DataField.new('959', ' ', ' ', ['a', cat_date.to_s])) if cat_date
+                  end
                 end
                 writer.write(bib)
               end
