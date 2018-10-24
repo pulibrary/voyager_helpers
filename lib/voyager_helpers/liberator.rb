@@ -390,6 +390,19 @@ module VoyagerHelpers
             next unless bibs.first
             if opts.fetch(:holdings, true)
               all_mfhds = get_mfhds_for_bib_coll(bib_ids, c)
+              bib_create_dates = {}
+              earliest_item_dates = {}
+              if opts.fetch(:cat_date, false)
+                eres_mfhds = Set.new
+                all_mfhds.each do |id, mfhd|
+                  reader = MARC::Reader.new(StringIO.new(mfhd, 'r'), external_encoding: 'UTF-8', invalid: :replace, replace: '')
+                  reader.each do |holding|
+                    eres_mfhds << id if holding['852'] && holding['852']['b'] =~ /^elf/
+                  end
+                end
+                bib_create_dates = get_bulkbib_create_dates(bib_ids, c) unless eres_mfhds.empty?
+                earliest_item_dates = get_bulkbib_earliest_item_dates(bib_ids, c) unless eres_mfhds.length == all_mfhds.length
+              end
               bibs.each do |bib|
                 next unless bib['001']
                 bib_id = bib['001'].value.to_i
@@ -403,8 +416,11 @@ module VoyagerHelpers
                     end
                   end
                   if opts.fetch(:cat_date, false)
-                    cat_date = get_catalog_date(bib_id, mfhds, c)
-                    bib.append(MARC::DataField.new('959', ' ', ' ', ['a', cat_date.to_s])) if cat_date
+                    h_fields = bib.fields('852')
+                    unless h_fields.empty?
+                      cat_date = h_fields.select { |field| field['b'] =~ /^elf/ }.empty? ? earliest_item_dates[bib_id] : bib_create_dates[bib_id]
+                      bib.append(MARC::DataField.new('959', ' ', ' ', ['a', cat_date.to_s])) if cat_date
+                    end
                   end
                 end
                 writer.write(bib)
@@ -1037,6 +1053,32 @@ module VoyagerHelpers
         end
       end
 
+      def get_bulkbib_create_dates(bib_ids, conn=nil)
+        create_dates = {}
+        query = VoyagerHelpers::Queries.bulkbib_create_date(bib_ids)
+        connection(conn) do |c|
+          c.exec(query, *bib_ids) do |row|
+            bib_id = row.shift
+            date = row.shift
+            create_dates[bib_id] = date
+          end
+        end
+        create_dates
+      end
+
+      def get_bulkbib_earliest_item_dates(bib_ids, conn=nil)
+        item_dates = {}
+        query = VoyagerHelpers::Queries.bulkbib_earliest_item_date(bib_ids)
+        connection(conn) do |c|
+          c.exec(query, *bib_ids) do |row|
+            bib_id = row.shift
+            date = row.shift
+            item_dates[bib_id] = date
+          end
+        end
+        item_dates
+      end
+
       def get_item_create_date(item_id, conn=nil)
         query = VoyagerHelpers::Queries.item_create_date
         connection(conn) do |c|
@@ -1108,4 +1150,3 @@ module VoyagerHelpers
     end # class << self
   end # class Liberator
 end # module VoyagerHelpers
-                                 
