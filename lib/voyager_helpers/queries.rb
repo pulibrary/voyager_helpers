@@ -397,6 +397,22 @@ module VoyagerHelpers
         )
       end
 
+      def bulkbib_earliest_item_date(bib_ids)
+        bib_ids = OCI8::in_cond(:bib_ids, bib_ids)
+        %(
+          SELECT
+            bib_mfhd.bib_id,
+            MIN(item.create_date)
+          FROM bib_mfhd
+            JOIN mfhd_item
+              ON bib_mfhd.mfhd_id = mfhd_item.mfhd_id
+            JOIN item
+              ON mfhd_item.item_id = item.item_id
+          WHERE bib_mfhd.bib_id IN (#{bib_ids.names})
+          GROUP BY bib_mfhd.bib_id
+        )
+      end
+
       def bib_update_date
         %Q(
         SELECT

@@ -390,20 +390,36 @@ module VoyagerHelpers
             next unless bibs.first
             if opts.fetch(:holdings, true)
               all_mfhds = get_mfhds_for_bib_coll(bib_ids, c)
+              bib_create_dates = nil
+              earliest_item_dates = nil
+              if opts.fetch(:cat_date, false)
+                eres_mfhds = []
+                all_mfhds.each do |id, mfhd|
+                  reader = MARC::Reader.new(StringIO.new(mfhd, 'r'), external_encoding: 'UTF-8', invalid: :replace, replace: '')
+                  reader.each do |holding|
+                    eres_mfhds << id if holding['852'] && holding['852']['b'] =~ /^elf/
+                  end
+                end
+                bib_create_dates = get_bulkbib_create_dates(bib_ids, c) unless eres_mfhds.empty?
+                earliest_item_dates = get_bulkbib_earliest_item_dates(bib_ids, c) unless eres_mfhds.length == all_mfhds.length
+              end
               bibs.each do |bib|
                 next unless bib['001']
                 bib_id = bib['001'].value.to_i
                 mfhds = all_mfhds[bib_id]
+                holdings = []
                 unless mfhds.nil?
                   mfhd_reader = MARC::Reader.new(StringIO.new(mfhds, 'r'), external_encoding: 'UTF-8', invalid: :replace, replace: '')
                   mfhd_reader.each do |holding|
+                    holdings << holding
                     holding.fields.each_by_tag(['852', '856', '866', '867', '868']) do |field|
                       field.subfields.unshift(MARC::Subfield.new('0', holding['001'].value))
                       bib.append(field)
                     end
                   end
                   if opts.fetch(:cat_date, false)
-                    cat_date = get_catalog_date(bib_id, mfhds, c)
+                    h_fields = bib.fields('852')
+                    cat_date = h_fields.select { |field| field['b'] =~ /^elf/ }.empty? ? earliest_item_dates[bib_id] : bib_create_dates[bib_id]
                     bib.append(MARC::DataField.new('959', ' ', ' ', ['a', cat_date.to_s])) if cat_date
                   end
                 end
@@ -1035,6 +1051,32 @@ module VoyagerHelpers
           cursor.close()
           date
         end
+      end
+
+      def get_bulkbib_create_dates(bib_ids, conn=nil)
+        create_dates = {}
+        query = VoyagerHelpers::Queries.bulkbib_create_date(bib_ids)
+        connection(conn) do |c|
+          c.exec(query, *bib_ids) do |row|
+            bib_id = row.shift
+            date = row.shift
+            create_dates[bib_id] = date
+          end
+        end
+        create_dates
+      end
+
+      def get_bulkbib_earliest_item_dates(bib_ids, conn=nil)
+        item_dates = {}
+        query = VoyagerHelpers::Queries.bulkbib_earliest_item_date(bib_ids)
+        connection(conn) do |c|
+          c.exec(query, *bib_ids) do |row|
+            bib_id = row.shift
+            date = row.shift
+            item_dates[bib_id] = date
+          end
+        end
+        item_dates
       end
 
       def get_item_create_date(item_id, conn=nil)
