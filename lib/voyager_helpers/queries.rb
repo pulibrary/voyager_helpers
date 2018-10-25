@@ -388,6 +388,18 @@ module VoyagerHelpers
         )
       end
 
+      def bulkbib_create_date(bib_ids)
+        bib_ids = OCI8::in_cond(:bib_ids, bib_ids)
+        %(
+          SELECT
+            bib_id,
+            create_date
+          FROM bib_master
+          WHERE bib_id IN (#{bib_ids.names})
+          ORDER BY bib_id
+        )
+      end
+
       def bib_create_date
         %Q(
         SELECT
