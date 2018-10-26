@@ -404,6 +404,7 @@ module VoyagerHelpers
               end
               bibs.each do |bib|
                 next unless bib['001']
+                bib.fields.delete_if { |f| ['852', '866', '867', '868'].include? f.tag }
                 bib_id = bib['001'].value.to_i
                 mfhds = all_mfhds[bib_id]
                 unless mfhds.nil?
