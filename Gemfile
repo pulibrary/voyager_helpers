@@ -5,3 +5,7 @@ gem 'rspec', '~> 3.4', group: :test
 
 # Specify your gem's dependencies in marc_liberation.gemspec
 gemspec
+
+group :development, :test do
+  gem 'pry-byebug'
+end

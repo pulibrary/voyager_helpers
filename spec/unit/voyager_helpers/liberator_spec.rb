@@ -1,5 +1,5 @@
-require 'spec_helper'
 require 'json'
+require 'spec_helper'
 require 'time'
 
 def json_stub(filename)
@@ -79,6 +79,34 @@ describe VoyagerHelpers::Liberator do
     it 'returns order status of newer order when multiple orders' do
       allow(described_class).to receive(:get_orders).and_return(two_orders)
       expect(described_class.get_order_status(placeholder_id)).to include('On-Order')
+    end
+
+    context 'when an invalid order is returned' do
+      let(:date) do
+        { invalid: Date.parse("2015-12-14T15:34:00.000-05:00").to_datetime }
+      end
+      let(:newer_date) do
+        { invalid: Date.parse("2016-12-14T15:34:00.000-05:00").to_datetime }
+      end
+      let(:invalid_orders) { two_orders }
+      let(:logger_class) do
+        class_double('Logger').as_stubbed_const(transfer_nested_constants: true)
+      end
+      let(:logger) { instance_double(logger_class) }
+      let(:rails_class) do
+        class_double('Rails').as_stubbed_const(transfer_nested_constants: true)
+      end
+
+      before do
+        allow(logger).to receive(:error)
+        allow(rails_class).to receive(:logger).and_return(logger)
+        allow(described_class).to receive(:get_orders).and_return(invalid_orders)
+      end
+
+      it 'does not return an order status and logs an error' do
+        expect(described_class.get_order_status(placeholder_id)).to be nil
+        expect(Rails.logger).to have_received(:error).with(/Failed to parse the Voyager query results/)
+      end
     end
   end
 
