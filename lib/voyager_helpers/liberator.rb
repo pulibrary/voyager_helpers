@@ -473,8 +473,11 @@ module VoyagerHelpers
       # if code is not whitelisted return nil
       def get_order_status(mfhd_id, conn=nil)
         status = nil
-        unless (orders = get_orders(mfhd_id, conn)).empty?
-          latest_order = orders.max { |a,b| a[:date] <=> b[:date] }
+        orders = get_orders(mfhd_id, conn)
+
+        unless orders.empty?
+          latest_order = orders.max { |a, b| a[:date] <=> b[:date] }
+
           po_status, li_status = latest_order[:po_status], latest_order[:li_status]
           if on_order?(po_status, li_status)
             status = if li_status == li_rec_complete
@@ -488,6 +491,9 @@ module VoyagerHelpers
           end
         end
         status
+      rescue ArgumentError => error
+        Rails.logger.error "Failed to parse the Voyager query results #{orders.join(',')} : #{error}"
+        return
       end
 
       # @param barcode [String] An item barcode
