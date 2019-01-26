@@ -15,6 +15,9 @@ describe VoyagerHelpers::Liberator do
     let(:date) { Date.parse("2015-12-14T15:34:00.000-05:00").to_datetime }
     let(:newer_date) { Date.parse("2016-12-14T15:34:00.000-05:00").to_datetime }
     let(:no_order_found) { {} }
+    let(:current_ledger) { 55 }
+    let(:no_issues) { [] }
+    let(:has_issues) { %w[v1 v2 v3 v4] }
     let(:pre_order) { [{
                         date: nil,
                         li_status: 0,
@@ -49,36 +52,57 @@ describe VoyagerHelpers::Liberator do
 
 
     it 'returns nil when no order found for bib' do
+      allow(described_class).to receive(:get_ledger).and_return(current_ledger)
       allow(described_class).to receive(:get_orders).and_return(no_order_found)
       expect(described_class.get_order_status(placeholder_id)).to eq nil
     end
     it 'returns Pending Order for pending orders, date not included if nil' do
+      allow(described_class).to receive(:get_ledger).and_return(current_ledger)
       allow(described_class).to receive(:get_orders).and_return(pre_order)
+      allow(described_class).to receive(:get_current_issues).and_return(no_issues)
       expect(described_class.get_order_status(placeholder_id)).to eq "Pending Order"
     end
     it 'returns On-Order for approved order' do
+      allow(described_class).to receive(:get_ledger).and_return(current_ledger)
       allow(described_class).to receive(:get_orders).and_return(approved_order)
+      allow(described_class).to receive(:get_current_issues).and_return(no_issues)
       expect(described_class.get_order_status(placeholder_id)).to include('On-Order')
     end
     it 'returns On-Order for partially received order' do
+      allow(described_class).to receive(:get_ledger).and_return(current_ledger)
       allow(described_class).to receive(:get_orders).and_return(partially_rec_order)
+      allow(described_class).to receive(:get_current_issues).and_return(no_issues)
       expect(described_class.get_order_status(placeholder_id)).to include('On-Order')
     end
     it 'returns Order Received for fully received order' do
+      allow(described_class).to receive(:get_ledger).and_return(current_ledger)
       allow(described_class).to receive(:get_orders).and_return(received_order)
+      allow(described_class).to receive(:get_current_issues).and_return(no_issues)
       expect(described_class.get_order_status(placeholder_id)).to include('Order Received')
     end
     it "includes status date with order response" do
+      allow(described_class).to receive(:get_ledger).and_return(current_ledger)
       allow(described_class).to receive(:get_orders).and_return(approved_order)
+      allow(described_class).to receive(:get_current_issues).and_return(no_issues)
       expect(described_class.get_order_status(placeholder_id)).to include(date.strftime('%m-%d-%Y'))
     end
     it "it returns nil when order is complete" do
+      allow(described_class).to receive(:get_ledger).and_return(current_ledger)
       allow(described_class).to receive(:get_orders).and_return(complete_order)
+      allow(described_class).to receive(:get_current_issues).and_return(no_issues)
       expect(described_class.get_order_status(placeholder_id)).to eq nil
     end
     it 'returns order status of newer order when multiple orders' do
+      allow(described_class).to receive(:get_ledger).and_return(current_ledger)
       allow(described_class).to receive(:get_orders).and_return(two_orders)
+      allow(described_class).to receive(:get_current_issues).and_return(no_issues)
       expect(described_class.get_order_status(placeholder_id)).to include('On-Order')
+    end
+    it 'returns nil when MFHD has current issues regardless of order status' do
+      allow(described_class).to receive(:get_ledger).and_return(current_ledger)
+      allow(described_class).to receive(:get_orders).and_return(partially_rec_order)
+      allow(described_class).to receive(:get_current_issues).and_return(has_issues)
+      expect(described_class.get_order_status(placeholder_id)).to eq nil
     end
 
     context 'when an invalid order is returned' do

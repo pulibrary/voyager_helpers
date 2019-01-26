@@ -311,16 +311,16 @@ module VoyagerHelpers
 
       # @param mfhd_id [Fixnum] get current issues for mfhd
       # @return [Array<Hash>] Current issues
-      def get_current_issues(mfhd_id)
+      def get_current_issues(mfhd_id, conn = nil)
         issues = []
-        connection do |c|
+        connection(conn) do |c|
           cursor = c.parse(VoyagerHelpers::Queries.current_periodicals)
           cursor.bind_param(':mfhd_id', mfhd_id)
-          cursor.exec()
+          cursor.exec
           while enum = cursor.fetch
-            issues << enum
+            issues << enum.first
           end
-          cursor.close()
+          cursor.close
         end
         issues
       end
@@ -473,21 +473,23 @@ module VoyagerHelpers
       # if code is not whitelisted return nil
       def get_order_status(mfhd_id, conn=nil)
         status = nil
-        orders = get_orders(mfhd_id, conn)
-
+        ledger_id = get_ledger(conn)
+        orders = get_orders(mfhd_id, ledger_id, conn)
         unless orders.empty?
           latest_order = orders.max { |a, b| a[:date] <=> b[:date] }
-
           po_status, li_status = latest_order[:po_status], latest_order[:li_status]
           if on_order?(po_status, li_status)
-            status = if li_status == li_rec_complete
+            issues = get_current_issues(mfhd_id, conn)
+            status = if issues.size > 0
+              nil
+            elsif li_status == li_rec_complete
               'Order Received'
             elsif li_status == li_pending
               'Pending Order'
             else
               'On-Order'
             end
-            status << " #{latest_order[:date].strftime('%m-%d-%Y')}" unless latest_order[:date].nil?
+            status << " #{latest_order[:date].strftime('%m-%d-%Y')}" unless status.nil? || latest_order[:date].nil?
           end
         end
         status
@@ -586,22 +588,41 @@ module VoyagerHelpers
         call_no
       end
 
+      # @return [Fixnum] A ledger ID
+      def get_ledger(conn=nil)
+        query = VoyagerHelpers::Queries.ledger
+        date = Date.today
+        year = date.year
+        month = date.month
+        year += 1 if month > 6
+        year = year.to_s
+        connection(conn) do |c|
+          cursor = c.parse(query)
+          cursor.bind_param(':year', year)
+          cursor.exec
+          row = cursor.fetch
+          row.first
+        end
+      end
+
       # @param mfhd_id [Fixnum] A mfhd record id
+      # @param ledger_id [Fixnum] The current ledger ID
       # @return [Array<Hash>] An Array of Hashes with three keys: :date, :li_status, :po_status.
-      def get_orders(mfhd_id, conn=nil)
+      def get_orders(mfhd_id, ledger_id, conn=nil)
         statuses = []
         query = VoyagerHelpers::Queries.orders
         connection(conn) do |c|
           cursor = c.parse(query)
           cursor.bind_param(':mfhd_id', mfhd_id)
-          cursor.exec()
+          cursor.bind_param(':ledger_id', ledger_id)
+          cursor.exec
           while row = cursor.fetch
             date = row[2] ? row[2].to_datetime : row[2]
             statuses << { po_status: row.shift,
                         li_status: row.shift,
                         date: date }
           end
-          cursor.close()
+          cursor.close
         end
         statuses
       end
