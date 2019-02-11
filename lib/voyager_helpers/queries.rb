@@ -295,7 +295,7 @@ module VoyagerHelpers
       end
 
       def orders
-        %Q(
+        %(
         SELECT
           purchase_order.po_status,
           line_item_copy_status.line_item_status,
@@ -303,12 +303,30 @@ module VoyagerHelpers
         FROM line_item_copy_status
           JOIN line_item
             ON line_item_copy_status.line_item_id = line_item.line_item_id
+          JOIN line_item_copy
+            ON line_item.line_item_id = line_item_copy.line_item_id
           JOIN purchase_order
             ON line_item.po_id = purchase_order.po_id
         WHERE
           line_item_copy_status.mfhd_id = :mfhd_id
+          AND line_item_copy.use_ledger = :ledger_id
+        GROUP BY
+          purchase_order.po_status,
+          line_item_copy_status.line_item_status,
+          line_item_copy_status.status_date
         ORDER BY
           line_item_copy_status.status_date DESC
+        )
+      end
+
+      def ledger
+        %(
+        SELECT
+          ledger.ledger_id
+        FROM ledger
+          JOIN fiscal_period
+            ON ledger.fiscal_year_id = fiscal_period.fiscal_period_id
+        WHERE fiscal_period.fiscal_period_name = :year
         )
       end
 
