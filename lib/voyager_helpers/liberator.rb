@@ -20,12 +20,10 @@ module VoyagerHelpers
       #   are holdings.
       def get_bib_record(bib_id, conn=nil, opts={})
         connection(conn) do |c|
-          unless bib_is_suppressed?(bib_id, c)
-            if opts.fetch(:holdings, true)
-              get_bib_with_holdings(bib_id, c, opts)
-            else
-              get_bib_without_holdings(bib_id, c)
-            end
+          if opts.fetch(:holdings, true)
+            get_bib_with_holdings(bib_id, c, opts)
+          else
+            get_bib_without_holdings(bib_id, c)
           end
         end
       end
