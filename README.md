@@ -43,6 +43,11 @@ If you get "client host name is not set" then you have to set your host name in
 `/etc/hosts`. Here is [one
 guide](http://johanlouwers.blogspot.com/2019/02/resolved-cxoracledatabaseerror-ora.html) for doing so.
 
+Add in your host name locally if you get `OCIError (ORA-24454: client host name is not set)` when you run your application that is utilizing this gem.  For example in marc_liberation `http://localhost:3000/patron/<your netid>`
+```bash
+sudo /bin/bash -c "echo '127.0.1.1 ${HOSTNAME}' >> /etc/hosts"
+```
+
 ## Configuration
 
 Add the `voyager_helpers` and `ruby-oci8` gems to your application's Gemfile
