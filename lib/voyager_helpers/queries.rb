@@ -271,15 +271,18 @@ module VoyagerHelpers
           mfhd_item.item_enum,
           mfhd_item.chron,
           item_barcode.item_barcode,
+          item_type.item_type_code,
           item_status_type.item_status_desc,
           circ_transactions.current_due_date
         FROM item
-          INNER JOIN location perm_loc
+          JOIN location perm_loc
             ON perm_loc.location_id = item.perm_location
           LEFT JOIN location temp_loc
             ON temp_loc.location_id = item.temp_location
-          INNER JOIN mfhd_item
+          JOIN mfhd_item
             ON mfhd_item.item_id = item.item_id
+          JOIN item_type
+            ON item.item_type_id = item_type.item_type_id
           LEFT JOIN item_barcode
             ON item_barcode.item_id = item.item_id
           JOIN item_status
