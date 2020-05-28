@@ -295,6 +295,7 @@ module VoyagerHelpers
           item_hash[:on_reserve] = item[:on_reserve] unless item[:on_reserve].nil?
           due_date = format_due_date(item[:due_date], item[:on_reserve])
           item_hash[:due_date] = due_date unless due_date.nil?
+          item_hash[:item_type] = item[:item_type]
           unless item[:enum].nil?
             item_hash[:enum] = item[:enum]
             enum = item[:enum]
@@ -826,9 +827,9 @@ module VoyagerHelpers
       def group_item_info_rows(rows)
         final_items = []
         grouped_items = rows.group_by { |row| row['ITEM_ID'] }
-        grouped_items.each do |pair|
+        grouped_items.each do |_item_id, items|
           statuses = []
-          first_item = pair[1][0]
+          first_item = items.first
           info = {}
           info[:id] = first_item['ITEM_ID']
           info[:on_reserve] = first_item['ON_RESERVE']
@@ -841,8 +842,9 @@ module VoyagerHelpers
           chron = first_item['CHRON']
           info[:chron] = valid_ascii(chron)
           info[:barcode] = first_item['ITEM_BARCODE']
+          info[:item_type] = first_item['ITEM_TYPE_CODE']
           info[:due_date] = first_item['CURRENT_DUE_DATE']
-          pair[1].each do |item|
+          items.each do |item|
             statuses << item['ITEM_STATUS_DESC']
           end
           info[:status] = statuses
