@@ -147,6 +147,11 @@ describe VoyagerHelpers::Liberator do
                                 on_reserve: 'N',
                                 temp_location: nil,
                                 perm_location: 'f',
+                                mfhd_location: 'f',
+                                circ_group_id: 1,
+                                pickup_location_code: 'fcirc',
+                                pickup_location_id: '299',
+                                item_type: 'Gen',
                                 enum: nil,
                                 chron: nil,
                                 copy_number: 2,
@@ -256,6 +261,17 @@ describe VoyagerHelpers::Liberator do
       allow(described_class).to receive(:get_items_for_holding).and_return(single_volume_2_copy)
       availability = described_class.get_full_mfhd_availability(placeholder_id).first
       expect(availability[:status]).to eq [not_charged]
+    end
+    it 'includes pickup location ID and code' do
+      allow(described_class).to receive(:get_items_for_holding).and_return(single_volume_2_copy)
+      availability = described_class.get_full_mfhd_availability(placeholder_id).first
+      expect(availability[:pickup_location_id]).to eq '299'
+      expect(availability[:pickup_location_code]).to eq 'fcirc'
+    end
+    it 'includes item type' do
+      allow(described_class).to receive(:get_items_for_holding).and_return(single_volume_2_copy)
+      availability = described_class.get_full_mfhd_availability(placeholder_id).first
+      expect(availability[:item_type]).to eq 'Gen'
     end
     it 'includes enumeration info when present' do
       allow(described_class).to receive(:get_items_for_holding).and_return(limited_multivolume)

@@ -296,6 +296,8 @@ module VoyagerHelpers
           due_date = format_due_date(item[:due_date], item[:on_reserve])
           item_hash[:due_date] = due_date unless due_date.nil?
           item_hash[:item_type] = item[:item_type]
+          item_hash[:pickup_location_id] = item[:pickup_location_id]
+          item_hash[:pickup_location_code] = item[:pickup_location_code]
           unless item[:enum].nil?
             item_hash[:enum] = item[:enum]
             enum = item[:enum]
@@ -837,6 +839,12 @@ module VoyagerHelpers
           info[:item_sequence_number] = first_item['ITEM_SEQUENCE_NUMBER']
           info[:temp_location] = first_item['TEMP_LOC']
           info[:perm_location] = first_item['LOCATION_CODE']
+          info[:circ_group_id] = first_item['CIRC_GROUP_ID']
+          info[:circ_group_id] ||= 1
+          pickup_loc = pickup_location_for_circ_group_id[info[:circ_group_id]]
+          pickup_loc ||= pickup_location_for_circ_group_id[1] # default to Firestone
+          info[:pickup_location_code] = pickup_loc[:code]
+          info[:pickup_location_id] = pickup_loc[:id]
           enum = first_item['ITEM_ENUM']
           info[:enum] = valid_ascii(enum)
           chron = first_item['CHRON']
@@ -1176,6 +1184,24 @@ module VoyagerHelpers
         end
       end
 
+      def pickup_location_for_circ_group_id
+        {
+          1 => { code: 'fcirc', id: 299 }, # Firestone
+          5 => { code: 'uescirc', id: 356 }, # Architecture
+          6 => { code: 'muscirc', id: 309 }, # Music
+          7 => { code: 'sacirc', id: 321 }, # Marquand
+          10 => { code: 'anxacirc', id: 293 }, # Annex A
+          13 => { code: 'piaprcirc', id: 333 }, # Stokes
+          14 => { code: 'stcirc', id: 345 }, # Engineering
+          15 => { code: 'gestcirc', id: 303 }, # East Asian
+          16 => { code: 'pplcirc', id: 312 }, # PPPL
+          17 => { code: 'muddcirc', id: 306 }, # Mudd
+          18 => { code: 'rbcirc', id: 315 }, # Rare Books
+          21 => { code: 'fcirc', id: 299 }, # Video Library (Firestone pickup)
+          22 => { code: 'fcirc', id: 299 }, # ReCAP (Firestone pickup)
+          24 => { code: 'scicirc', id: 489 } # Lewis
+        }
+      end
     end # class << self
   end # class Liberator
 end # module VoyagerHelpers

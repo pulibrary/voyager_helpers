@@ -272,6 +272,7 @@ module VoyagerHelpers
           mfhd_item.chron,
           item_barcode.item_barcode,
           item_type.item_type_code,
+          circ_policy_locs.circ_group_id,
           item_status_type.item_status_desc,
           circ_transactions.current_due_date
         FROM item
@@ -281,6 +282,10 @@ module VoyagerHelpers
             ON temp_loc.location_id = item.temp_location
           JOIN mfhd_item
             ON mfhd_item.item_id = item.item_id
+          JOIN mfhd_master
+            ON mfhd_item.mfhd_id = mfhd_master.mfhd_id
+          LEFT JOIN circ_policy_locs
+            ON mfhd_loc.location_id = circ_policy_locs.location_id
           JOIN item_type
             ON item.item_type_id = item_type.item_type_id
           LEFT JOIN item_barcode
