@@ -285,7 +285,7 @@ module VoyagerHelpers
           JOIN mfhd_master
             ON mfhd_item.mfhd_id = mfhd_master.mfhd_id
           LEFT JOIN circ_policy_locs
-            ON mfhd_loc.location_id = circ_policy_locs.location_id
+            ON mfhd_master.location_id = circ_policy_locs.location_id
           JOIN item_type
             ON item.item_type_id = item_type.item_type_id
           LEFT JOIN item_barcode
