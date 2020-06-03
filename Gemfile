@@ -1,7 +1,7 @@
 source 'https://rubygems.org'
 
-gem 'ruby-oci8', '~> 2.2.1', group: :development
-gem 'rspec', '~> 3.4', group: :test
+gem 'ruby-oci8', '~> 2.2.0', group: :development
+gem 'rspec', '~> 3.8', group: :test
 
 # Specify your gem's dependencies in marc_liberation.gemspec
 gemspec

@@ -15,12 +15,12 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^spec/})
   spec.require_paths = ['lib']
 
-  spec.add_development_dependency 'bundler', '~> 1.7'
-  spec.add_development_dependency 'rake', '~> 10.0'
+  spec.add_development_dependency 'bundler', '~> 2.0'
+  spec.add_development_dependency 'rake', '~> 12.0'
   spec.add_development_dependency 'rspec'
 
   spec.add_dependency 'activesupport', '~> 5.1'
   spec.add_dependency 'marc', '~> 1.0'
-  spec.add_dependency 'diffy', '~> 3.0.7'
+  spec.add_dependency 'diffy', '~> 3.0'
 
 end
