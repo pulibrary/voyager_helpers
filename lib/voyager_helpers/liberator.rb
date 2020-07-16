@@ -852,6 +852,7 @@ module VoyagerHelpers
           info[:barcode] = first_item['ITEM_BARCODE']
           info[:item_type] = first_item['ITEM_TYPE_CODE']
           info[:due_date] = first_item['CURRENT_DUE_DATE']
+          info[:patron_group_charged] = first_item['PATRON_GROUP_CODE']
           items.each do |item|
             statuses << item['ITEM_STATUS_DESC']
           end
