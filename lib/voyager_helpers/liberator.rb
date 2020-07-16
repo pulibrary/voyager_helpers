@@ -575,10 +575,10 @@ module VoyagerHelpers
         notes = []
         f866_arr = mfhd.fields('866')
         f866_arr.each do |f|
-          text_holdings = f['866']['a']
-          public_note = f['866']['z']
-          notes << text_holdings unless text_holdings.empty?
-          notes << public_note unless public_note.empty?
+          text_holdings = f['a']
+          public_notes = f.subfields.select { |subf| subf.code == 'z' }
+          notes << text_holdings unless text_holdings.nil?
+          public_notes.each { |note| notes << note }
         end
         notes
       end
