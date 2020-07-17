@@ -13,7 +13,7 @@ jobs:
 
       - restore_cache:
           keys:
-          - voyager_helpers-{{ checksum "Gemfile" }}
+          - voyager_helpers-{{ checksum "Gemfile" }}-2
           - voyager_helpers-
 
       - run:
@@ -21,7 +21,7 @@ jobs:
           command: bundle check --path=vendor/bundle || bundle install --path=vendor/bundle --without development production --jobs 4 --retry 3
 
       - save_cache:
-          key: voyager_helpers-{{ checksum "Gemfile" }}
+          key: voyager_helpers-{{ checksum "Gemfile" }}-2
           paths:
             - vendor/bundle
 
