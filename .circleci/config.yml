@@ -4,18 +4,17 @@ jobs:
     working_directory: ~/voyager_helpers
 
     docker:
-      - image: circleci/ruby:2.4.2-node-browsers
+      - image: circleci/ruby:2.6-node-browsers
         environment:
           RAILS_ENV: test
 
     steps:
       - checkout
-
+      - run: gem install bundler -v '~> 2.0'
       - restore_cache:
           keys:
           - voyager_helpers-{{ checksum "Gemfile" }}-2
           - voyager_helpers-
-
       - run:
           name: Install dependencies
           command: bundle check --path=vendor/bundle || bundle install --path=vendor/bundle --without development production --jobs 4 --retry 3
