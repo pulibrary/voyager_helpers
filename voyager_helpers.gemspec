@@ -22,5 +22,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'activesupport', '~> 5.1'
   spec.add_dependency 'marc', '~> 1.0'
   spec.add_dependency 'diffy', '~> 3.0.7'
+  spec.add_dependency 'irb'
 
 end
