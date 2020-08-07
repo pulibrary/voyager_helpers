@@ -235,7 +235,6 @@ module VoyagerHelpers
                   'On Shelf'
                 end
               else
-                byebug
                 item = get_info_for_item(holding_item_ids.first, c, false)
                 unless item[:temp_location].nil?
                   availability[bib_id][mfhd_id][:temp_loc] = item[:temp_location]
@@ -246,6 +245,7 @@ module VoyagerHelpers
                 availability[bib_id][mfhd_id][:on_reserve] = item[:on_reserve]
                 due_date = format_due_date(item[:due_date], item[:on_reserve])
                 availability[bib_id][mfhd_id][:due_date] = due_date unless due_date.nil?
+                availability[bib_id][mfhd_id][:patron_group_charged] = item[:patron_group_charged]
                 item[:status]
               end
             end
@@ -671,6 +671,8 @@ module VoyagerHelpers
         info[:copy_number] = row.shift
         info[:item_sequence_number] = row.shift
         info[:temp_location] = row.shift
+        info[:due_date] = row.shift
+        info[:patron_group_charged] = row.shift
         if full == true
           info[:perm_location] = row.shift
           enum = row.shift
@@ -680,9 +682,6 @@ module VoyagerHelpers
           info[:barcode] = row.shift
         end
         info[:status] = get_item_statuses(item_id, conn)
-        unless (info[:status] & ['Charged', 'Renewed', 'Overdue']).empty?
-          info[:due_date] = get_due_date_for_item(item_id, conn)
-        end
         info
       end
 
