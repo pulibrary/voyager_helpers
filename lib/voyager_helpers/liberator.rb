@@ -222,11 +222,9 @@ module VoyagerHelpers
               mfhd_id = mfhd['001'].value.to_i
               location = mfhd['852'].nil? ? '' : mfhd['852']['b']
               holding_item_ids = get_item_ids_for_holding(mfhd_id, c)
-
               availability[bib_id][mfhd_id] = {} # holding record availability hash
               availability[bib_id][mfhd_id][:more_items] = holding_item_ids.count > 1
               availability[bib_id][mfhd_id][:location] = location
-
               availability[bib_id][mfhd_id][:status] = if holding_item_ids.empty?
                 order_status = get_order_status(mfhd_id, c)
                 if order_status
@@ -237,6 +235,7 @@ module VoyagerHelpers
                   'On Shelf'
                 end
               else
+                byebug
                 item = get_info_for_item(holding_item_ids.first, c, false)
                 unless item[:temp_location].nil?
                   availability[bib_id][mfhd_id][:temp_loc] = item[:temp_location]
@@ -298,6 +297,7 @@ module VoyagerHelpers
           item_hash[:item_type] = item[:item_type]
           item_hash[:pickup_location_id] = item[:pickup_location_id]
           item_hash[:pickup_location_code] = item[:pickup_location_code]
+          item_hash[:patron_group_charged] = item[:patron_group_charged]
           unless item[:enum].nil?
             item_hash[:enum] = item[:enum]
             enum = item[:enum]

@@ -141,6 +141,7 @@ describe VoyagerHelpers::Liberator do
     let(:item_barcode) { '32101005535917' }
     let(:not_charged) { 'Not Charged' }
     let(:charged) { 'Charged' }
+    let(:cdl_item_id) { 892346 }
     let(:single_volume_2_copy) { [{
                                 id: item_id,
                                 status: [not_charged],
@@ -251,6 +252,26 @@ describe VoyagerHelpers::Liberator do
                                 barcode: item_barcode,
                                 due_date: Time.parse('2000-06-15 23:00:00 -0400')
     }] }
+    let(:cdl_item) { [{ 
+                                id: cdl_item_id, 
+                                on_reserve: "N", 
+                                copy_number:1, 
+                                item_sequence_number: 1, temp_location: nil, perm_location: "f", circ_group_id: 1, 
+                                pickup_location_code: "fcirc", 
+                                pickup_location_id: 299, 
+                                enum: nil, 
+                                chron: nil, 
+                                barcode: "32202016869000", 
+                                item_type: "Gen", 
+                                due_date: Time.parse('2021-06-15 22:00:00 -0400'), 
+                                patron_group_charged: "CDL", 
+                                status:["Charged"]
+    }] }
+    it 'includes the patron group that the item is charged' do
+      allow(described_class).to receive(:get_items_for_holding).and_return(cdl_item)
+      availability = described_class.get_full_mfhd_availability(placeholder_id).first
+      expect(availability[:patron_group_charged]).to eq 'CDL'
+    end
     it 'includes item id and barcode in response' do
       allow(described_class).to receive(:get_items_for_holding).and_return(single_volume_2_copy)
       availability = described_class.get_full_mfhd_availability(placeholder_id).first
