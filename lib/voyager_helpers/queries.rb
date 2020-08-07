@@ -201,28 +201,54 @@ module VoyagerHelpers
       end
 
       def full_item_info
-        %Q(
-        SELECT
-          item.item_id,
-          item.on_reserve,
-          item.copy_number,
-          item.item_sequence_number,
-          temp_loc.location_code,
-          perm_loc.location_code,
-          mfhd_item.item_enum,
-          mfhd_item.chron,
-          item_barcode.item_barcode
-        FROM item
-          INNER JOIN location perm_loc
-            ON perm_loc.location_id = item.perm_location
-          LEFT JOIN location temp_loc
-            ON temp_loc.location_id = item.temp_location
-          INNER JOIN mfhd_item
-            ON mfhd_item.item_id = item.item_id
-          LEFT JOIN item_barcode
-            ON item_barcode.item_id = item.item_id
-        WHERE item.item_id=:item_id AND
-          (item_barcode.barcode_status = 1 OR item_barcode.barcode_status IS NULL)
+        %(
+          WITH item_info AS(
+            SELECT
+              item.item_id,
+              item.on_reserve,
+              item.copy_number,
+              item.item_sequence_number,
+              temp_loc.location_code temp_loc,
+              perm_loc.location_code perm_loc,
+              mfhd_item.item_enum,
+              mfhd_item.chron,
+              item_barcode.item_barcode
+            FROM item
+              JOIN location perm_loc
+                ON perm_loc.location_id = item.perm_location
+              LEFT JOIN location temp_loc
+                ON temp_loc.location_id = item.temp_location
+              JOIN mfhd_item
+                ON mfhd_item.item_id = item.item_id
+              LEFT JOIN item_barcode
+                ON item_barcode.item_id = item.item_id
+            WHERE item.item_id = :item_id AND
+              (item_barcode.barcode_status = 1 OR
+                item_barcode.barcode_status IS NULL)), circ_info AS(
+            SELECT
+              item_info.item_id,
+              circ_transactions.current_due_date,
+              patron_group.patron_group_code
+            FROM item_info
+              JOIN circ_transactions
+                ON item_info.item_id = circ_transactions.item_id
+              JOIN patron_group
+                ON circ_transactions.patron_group_id = patron_group.patron_group_id)
+          SELECT
+            item_info.item_id,
+            item_info.on_reserve,
+            item_info.copy_number,
+            item_info.item_sequence_number,
+            item_info.temp_loc,
+            circ_info.current_due_date,
+            circ_info.patron_group_code,
+            item_info.perm_loc,
+            item_info.item_enum,
+            item_info.chron,
+            item_info.item_barcode
+          FROM item_info
+            LEFT JOIN circ_info
+              ON item_info.item_id = circ_info.item_id
         )
       end
 
@@ -236,17 +262,39 @@ module VoyagerHelpers
       end
 
       def brief_item_info
-        %Q(
-        SELECT
-          item.item_id,
-          item.on_reserve,
-          item.copy_number,
-          item.item_sequence_number,
-          temp_loc.location_code
-        FROM item
-          LEFT JOIN location temp_loc
-            ON temp_loc.location_id = item.temp_location
-        WHERE item.item_id=:item_id
+        %(
+          WITH item_info AS(
+            SELECT
+              item.item_id,
+              item.on_reserve,
+              item.copy_number,
+              item.item_sequence_number,
+              temp_loc.location_code AS temp_loc
+            FROM item
+              LEFT JOIN location temp_loc
+                ON temp_loc.location_id = item.temp_location
+            WHERE item.item_id = :item_id
+          ), circ_info AS(
+            SELECT
+              item_info.item_id,
+              circ_transactions.current_due_date,
+              patron_group.patron_group_code
+            FROM item_info
+              JOIN circ_transactions
+                ON item_info.item_id = circ_transactions.item_id
+              JOIN patron_group
+                ON circ_transactions.patron_group_id = patron_group.patron_group_id)
+          SELECT
+            item_info.item_id,
+            item_info.on_reserve,
+            item_info.copy_number,
+            item_info.item_sequence_number,
+            item_info.temp_loc,
+            circ_info.current_due_date,
+            circ_info.patron_group_code
+          FROM item_info
+            LEFT JOIN circ_info
+              ON item_info.item_id = circ_info.item_id
         )
       end
 
