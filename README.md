@@ -6,6 +6,7 @@ A set of methods for retrieving data from Voyager.
 
 ## Installation
 
+### Ubuntu
 On __Ubuntu__ systems, do [this](https://help.ubuntu.com/community/Oracle%20Instant%20Client). __All of it.__
 
 Add configuration for VGER In `$ORACLE_HOME/network/admin/tnsnames.ora` (ask DBA).
@@ -19,10 +20,28 @@ export TNS_ADMIN=$ORACLE_HOME/network/admin
 
 To the variables you added earlier.
 
+### Mac
 On __MacOSX__, follow the [ruby-oci8 instructions for setting up Oracle with Homebrew]
-(http://www.rubydoc.info/gems/ruby-oci8/file/docs/install-on-osx.md), and set the `TNS_ADMIN`
-variable to the directory containing your `tnsnames.ora` config file.  These instructions
-install the 11.2 client, which works fine with 10.2 Oracle servers.
+(http://www.rubydoc.info/gems/ruby-oci8/file/docs/install-on-osx.md).
+You'll get the latest version of the client, which hopefully will be fine. The 11.2 client was known to work fine with 10.2 Oracle servers.
+
+Download `tnsnames.txt` from the shared notes in lastpass. Name it `tnsnames.ora`, place it in `~/.tns/`, and set an environment variable:
+```
+export TNS_ADMIN=~/.tns
+```
+
+## Dev setup
+
+Update the connection params in `lib/voyager_helpers/oracle_connection.rb` in
+line with the readonly credentials (also stored in a shared note in lastpass).
+Don't check this in to the repo.
+
+To try it open an irb with `bundle exec irb`. Then do `require
+'voyager_helpers'` and run whatever command you want.
+
+If you get "client host name is not set" then you have to set your host name in
+`/etc/hosts`. Here is [one
+guide](http://johanlouwers.blogspot.com/2019/02/resolved-cxoracledatabaseerror-ora.html) for doing so.
 
 ## Configuration
 
