@@ -130,8 +130,27 @@ module VoyagerHelpers
         xml_string.gsub(invalid_xml_range, '')
       end
 
-      # @return [<Hash>]
+      def get_item_hash(item_ids, conn = nil)
+        item_hash = {}
+        connection(conn) do |c|
+          item_ids.each_slice(1000) do |slice|
+            rows = []
+            query = VoyagerHelpers::Queries.items_for_item_ids(slice)
+            cursor = conn.exec(query, *slice)
+            while row = cursor.fetch_hash
+              rows << row
+            end
+            cursor.close
+            items = group_item_info_rows(rows)
+            items.each do |item|
+              item_hash[item[:id]] = item
+            end
+          end
+        end
+        item_hash
+      end
 
+      # @return [<Hash>]
       def get_items_for_holding(mfhd_id, conn=nil)
         items = []
         query = VoyagerHelpers::Queries.all_mfhd_items
@@ -438,11 +457,11 @@ module VoyagerHelpers
         writer.close
       end
 
-      def dump_merged_records_to_file(barcodes, file_name, recap=false)
+      def dump_merged_records_to_file(barcodes, file_name, recap = false)
         writer = MARC::XMLWriter.new(file_name)
         connection do |c|
-          barcodes.each do |barcode|
-            records = VoyagerHelpers::Liberator.get_records_from_barcode(barcode, recap)
+          barcodes.each_slice(1000) do |slice|
+            records = get_records_from_barcodes(slice, recap, c)
             records.each do |record|
               writer.write(record) unless record.nil?
             end
@@ -515,24 +534,75 @@ module VoyagerHelpers
         records
       end
 
+      def get_records_from_barcodes(barcodes, recap = false, conn = nil)
+        records = []
+        connection(conn) do |c|
+          barcodes.each_slice(1000) do |slice|
+            record_ids = get_record_ids_from_barcodes(slice, c, recap)
+            bib_ids = record_ids.map { |triple| triple[:bib_id] }
+            mfhd_ids = record_ids.map { |triple| triple[:mfhd_id] }
+            item_ids = record_ids.map { |triple| triple[:item_id] }
+            bib_ids.uniq!
+            mfhd_ids.uniq!
+            item_ids.uniq!
+            all_bibs = get_bib_hash(bib_ids, c)
+            all_mfhds = get_mfhd_hash(mfhd_ids, c)
+            all_items = get_item_hash(item_ids, c)
+            record_ids.each do |ids|
+              bib = all_bibs[ids[:bib_id]]
+              mfhd = all_mfhds[ids[:mfhd_id]]
+              item = all_items[ids[:item_id]]
+              next if bib.nil? || mfhd.nil? || item.nil?
+              records << merge_holding_item_into_bib(bib, mfhd, item, c, recap)
+            end
+          end
+        end
+        records
+      end
+
       # @param date [String] in format yyyy-mm-dd hh24:mi:ss.ffffff timezone_hourtimezone_minute (e.g., 2017-04-05 13:50:25.213245 -0400)
       # @return [Array]
       def updated_recap_barcodes(date)
         barcodes = []
         connection do |c|
           items = updated_recap_items(date, c)
-          items.each do |item|
-            item_statuses = get_item_statuses(item, c)
-            unless item_statuses.include?('In Process')
-              item_barcode = get_barcode_from_item(item, c)
-              barcodes << item_barcode
+          items.each_slice(1000) do |item_ids|
+            all_statuses = get_item_statuses(item_ids, c)
+            all_barcodes = get_barcodes_for_items(item_ids, c)
+            item_ids.each do |item_id|
+              item_statuses = all_statuses[item_id]
+              unless item_statuses.include?('In Process')
+                item_barcode = all_barcodes[item_id]
+                barcodes << item_barcode if item_barcode
+              end
             end
           end
         end
-        barcodes.uniq
+        return barcodes.uniq
       end
 
       private
+
+      def get_record_ids_from_barcodes(barcodes, conn  = nil, recap = false)
+        record_ids = []
+        connection(conn) do |c|
+          barcodes.each_slice(1000) do |slice|
+            query = if recap
+              VoyagerHelpers::Queries.recap_bulk_barcode_record_ids(slice)
+            else
+              VoyagerHelpers::Queries.bulk_barcode_record_ids(slice)
+            end
+            conn.exec(query, *slice) do |row|
+              bib_id = row.shift
+              mfhd_id = row.shift
+              item_id = row.shift
+              hash = { bib_id: bib_id, mfhd_id: mfhd_id, item_id: item_id }
+              record_ids << hash
+            end
+          end
+        end
+        record_ids
+      end
 
       def on_order?(po_status, li_status)
         po_pending = 0
@@ -681,7 +751,8 @@ module VoyagerHelpers
           info[:chron] = valid_ascii(chron)
           info[:barcode] = row.shift
         end
-        info[:status] = get_item_statuses(item_id, conn)
+        statuses = get_item_statuses([item_id], conn)
+        info[:status] = statuses[item_id]
         info
       end
 
@@ -707,24 +778,40 @@ module VoyagerHelpers
         end
       end
 
-      def get_item_statuses(item_id, conn=nil)
-        query = VoyagerHelpers::Queries.item_statuses
-        statuses = []
-        connection do |c|
-          cursor = c.parse(query)
-          cursor.bind_param(':item_id', item_id)
-          cursor.exec()
-          while row = cursor.fetch
-            statuses << row.first
+      # param item_ids [Array]
+      def get_item_statuses(item_ids, conn=nil)
+        item_hash = {}
+        connection(conn) do |c|
+          item_ids.each_slice(1000) do |ids|
+            query = VoyagerHelpers::Queries.item_statuses(ids)
+            conn.exec(query, *ids) do |row|
+              item_id = row.shift
+              item_hash[item_id] ||= []
+              item_hash[item_id] << row.shift
+            end
           end
         end
-        statuses
+        item_hash
+      end
+
+      def get_barcodes_for_items(item_ids, conn = nil)
+        item_hash = {}
+        connection(conn) do |c|
+          item_ids.each_slice(1000) do |ids|
+            query = VoyagerHelpers::Queries.barcodes_for_items(ids)
+            conn.exec(query, *ids) do |row|
+              item_id = row.shift
+              item_hash[item_id] = row.shift
+            end
+          end
+        end
+        item_hash
       end
 
       def get_barcode_from_item(item_id, conn=nil)
         barcode = ''
         query = VoyagerHelpers::Queries.barcode_from_item
-        connection do |c|
+        connection(conn) do |c|
           cursor = c.parse(query)
           cursor.bind_param(':item_id', item_id)
           cursor.exec()
@@ -734,35 +821,19 @@ module VoyagerHelpers
         barcode
       end
 
-      def updated_recap_items(date, conn=nil)
+      def updated_recap_items(date, conn = nil)
         items = []
         connection(conn) do |c|
-          query = VoyagerHelpers::Queries.recap_update_bib_items
+          query = VoyagerHelpers::Queries.recap_update_all_items
           cursor = c.parse(query)
           cursor.bind_param(':last_diff_date', date)
-          cursor.exec()
+          cursor.exec
           while row = cursor.fetch
             items << row.first
           end
-          cursor.close()
-          query = VoyagerHelpers::Queries.recap_update_holding_items
-          cursor = c.parse(query)
-          cursor.bind_param(':last_diff_date', date)
-          cursor.exec()
-          while row = cursor.fetch
-            items << row.first
-          end
-          cursor.close()
-          query = VoyagerHelpers::Queries.recap_update_item_items
-          cursor = c.parse(query)
-          cursor.bind_param(':last_diff_date', date)
-          cursor.exec()
-          while row = cursor.fetch
-            items << row.first
-          end
-          cursor.close()
+          cursor.close
         end
-        items
+        return items
       end
 
       def valid_ascii(string)
@@ -907,6 +978,18 @@ module VoyagerHelpers
         MARC::Reader.new(StringIO.new(raw_marc, 'r'), external_encoding: 'UTF-8', invalid: :replace, replace: '')
       end
 
+      def get_bib_hash(bib_ids, conn = nil)
+        bib_hash = {}
+        bib_ids.each_slice(1000) do |slice|
+          reader = get_bib_coll(slice, conn)
+          reader.each do |record|
+            bib_id = record['001'].value.to_i
+            bib_hash[bib_id] = record
+          end
+        end
+        bib_hash
+      end
+
       def get_bib_with_holdings(bib_id, conn=nil, opts={})
         bib = get_bib_without_holdings(bib_id, conn)
         unless bib.nil?
@@ -937,23 +1020,48 @@ module VoyagerHelpers
         mfhd_collection
       end
 
-      # Removes bib 852s and 86Xs, adds 852s, 856s, and 86Xs from holdings, adds 959 catalog date
-      def merge_holdings_info(bib, holdings, conn=nil)
-        merged_bib = bib
-        merged_bib.fields.delete_if { |f| ['852', '866', '867', '868'].include? f.tag }
-        unless holdings.empty?
-          holdings.each do |holding|
-            holding.fields.each_by_tag(['852', '856', '866', '867', '868']) do |field|
-              field.subfields.unshift(MARC::Subfield.new('0', holding['001'].value))
-              merged_bib.append(field)
-            end
-          end
-          catalog_date = get_catalog_date(bib['001'].value, holdings, conn)
-          unless catalog_date.nil?
-            merged_bib.append(MARC::DataField.new('959', ' ', ' ', ['a', catalog_date.to_s]))
+      def get_mfhd_coll(mfhd_ids, conn=nil)
+        segments = get_mfhd_coll_segments(mfhd_ids, conn)
+        return nil if segments.empty?
+        raw_marc = segments.join('')
+        MARC::Reader.new(StringIO.new(raw_marc, 'r'), external_encoding: 'UTF-8', invalid: :replace, replace: '')
+      end
+
+      def get_mfhd_hash(mfhd_ids, conn = nil)
+        mfhd_hash = {}
+        mfhd_ids.each_slice(1000) do |slice|
+          reader = get_mfhd_coll(slice, conn)
+          reader.each do |record|
+            mfhd_id = record['001'].value.to_i
+            mfhd_hash[mfhd_id] = record
           end
         end
-        merged_bib
+        mfhd_hash
+      end
+
+      # Removes bib 852s and 86Xs, adds 852s, 856s, and 86Xs from holdings, adds 959 catalog date
+      def merge_holdings_info(bib, holdings, conn = nil, recap = false)
+        bib.fields.delete_if { |f| ['852', '866', '867', '868'].include? f.tag }
+        unless holdings.empty?
+          holdings.each do |holding|
+            holding_id = holding['001'].value
+            holding.fields(['852', '856', '866', '867', '868']).each do |field|
+              new_field = MARC::DataField.new(field.tag,
+                                              field.indicator1,
+                                              field.indicator2)
+              new_field.append(MARC::Subfield.new('0', holding_id))
+              field.subfields.each { |subfield| new_field.append(subfield) }
+              bib.append(new_field)
+            end
+          end
+        end
+        unless recap
+          catalog_date = get_catalog_date(bib['001'].value, holdings, conn)
+          unless catalog_date.nil?
+            bib.append(MARC::DataField.new('959', ' ', ' ', ['a', catalog_date.to_s]))
+          end
+        end
+        bib
       end
 
       def get_catalog_date(bib_id, holdings, conn=nil)
@@ -983,9 +1091,8 @@ module VoyagerHelpers
         record_ids
       end
 
-      def merge_holding_item_into_bib(bib, holding, item, recap=false, conn=nil)
-        holdings = [holding]
-        merged_bib = merge_holdings_info(bib, holdings, conn)
+      def merge_holding_item_into_bib(bib, holding, item, recap = false, conn = nil)
+        merged_bib = merge_holdings_info(bib, [holding], conn, recap)
         merged_bib.fields.delete_if { |f| f.tag == '876' }
         holding_id = holding['001'].value
         holding_location = holding['852']['b']
@@ -1003,12 +1110,12 @@ module VoyagerHelpers
           recap_item_hash = recap_item_info(holding_location)
           merged_bib.fields.delete_if { |f| f.tag == '852' }
           f852 = holding['852']
+          f852.subfields.unshift(MARC::Subfield.new('0', holding_id))
           f852.subfields.delete_if { |s| ['h', 'i'].include? s.code }
-          f852.subfields.unshift(MARC::Subfield.new('0', holding['001'].value))
           f852.append(MARC::Subfield.new('h', call_no))
           merged_bib.append(f852)
           merged_bib.append(MARC::DataField.new('876', '0', '0',
-            MARC::Subfield.new('0', holding_id.to_s),
+            MARC::Subfield.new('0', holding_id),
             MARC::Subfield.new('3', item_enum_chron),
             MARC::Subfield.new('a', item[:id].to_s),
             MARC::Subfield.new('h', recap_item_hash[:recap_use_restriction]),
@@ -1020,7 +1127,7 @@ module VoyagerHelpers
           )
         else
           merged_bib.append(MARC::DataField.new('876', '0', '0',
-            MARC::Subfield.new('0', holding_id.to_s),
+            MARC::Subfield.new('0', holding_id),
             MARC::Subfield.new('3', item_enum_chron),
             MARC::Subfield.new('a', item[:id].to_s),
             MARC::Subfield.new('j', item[:status].join(', ')),
@@ -1031,7 +1138,7 @@ module VoyagerHelpers
         merged_bib
       end
 
-      def single_record_from_barcode (bib_id, mfhd_id, item_id, recap=false, conn=nil)
+      def single_record_from_barcode(bib_id, mfhd_id, item_id, recap = false, conn = nil)
         merged_record = nil
         connection(conn) do |c|
           bib = get_bib_without_holdings(bib_id, c)
@@ -1158,6 +1265,17 @@ module VoyagerHelpers
       def get_mfhd_segments(mfhd_id, conn=nil)
         query = VoyagerHelpers::Queries.mfhd
         segments(query, mfhd_id, conn)
+      end
+
+      def get_mfhd_coll_segments(mfhd_ids, conn = nil)
+        query = VoyagerHelpers::Queries.bulk_mfhd(mfhd_ids)
+        segments = []
+        connection(conn) do |c|
+          c.exec(query, *mfhd_ids) do |row|
+            segments << row.first
+          end
+        end
+        segments
       end
 
       def segments(query, id, conn=nil)

@@ -40,6 +40,48 @@ module VoyagerHelpers
         )
       end
 
+      def recap_bulk_barcode_record_ids(barcodes)
+        barcodes = OCI8.in_cond(:barcodes, barcodes)
+        %(
+          SELECT
+            bib_mfhd.bib_id,
+            mfhd_item.mfhd_id,
+            item_barcode.item_id
+          FROM item_barcode
+            JOIN mfhd_item
+              ON item_barcode.item_id = mfhd_item.item_id
+            JOIN bib_mfhd
+              ON mfhd_item.mfhd_id = bib_mfhd.mfhd_id
+          WHERE
+            item_barcode.item_barcode IN (#{barcodes.names})
+            AND item_barcode.barcode_status = 1
+        )
+      end
+
+      def bulk_barcode_record_ids(barcodes)
+        barcodes = OCI8.in_cond(:barcodes, barcodes)
+        %(
+          SELECT
+            bib_mfhd.bib_id,
+            mfhd_item.mfhd_id,
+            item_barcode.item_id
+          FROM item_barcode
+            JOIN mfhd_item
+              ON item_barcode.item_id = mfhd_item.item_id
+            JOIN bib_mfhd
+              ON mfhd_item.mfhd_id = bib_mfhd.mfhd_id
+            JOIN bib_master
+              ON bib_mfhd.bib_id = bib_master.bib_id
+            JOIN mfhd_master
+              ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id
+          WHERE
+            item_barcode.item_barcode IN (#{barcodes.names})
+            AND bib_master.suppress_in_opac = 'N'
+            AND mfhd_master.suppress_in_opac = 'N'
+            AND item_barcode.barcode_status = 1
+        )
+      end
+
       def recap_barcode_record_ids
         %Q(
           SELECT
@@ -80,73 +122,29 @@ module VoyagerHelpers
         )
       end
 
-      def recap_update_bib_items
-        %Q(
-          SELECT item_barcode.item_id
+      def recap_update_all_items
+        %(
+          SELECT item.item_id
           FROM bib_history
             JOIN bib_mfhd
               ON bib_history.bib_id = bib_mfhd.bib_id
             JOIN mfhd_master
               ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id
-            JOIN mfhd_item
-              ON mfhd_master.mfhd_id = mfhd_item.mfhd_id
-            JOIN item
-              ON mfhd_item.item_id = item.item_id
-            JOIN item_barcode
-              ON item.item_id = item_barcode.item_id
-          WHERE
-            mfhd_master.location_id IN (#{recap_locations.join(",")})
-            AND item.perm_location = mfhd_master.location_id
-            AND item_barcode.barcode_status = 1
-            AND (
-              (bib_history.action_date > TO_TIMESTAMP_TZ(:last_diff_date, 'YYYY-MM-DD HH24:MI:SS.FF TZHTZM') AND bib_history.action_type_id != 1)
-            )
-        )
-      end
-
-      def recap_update_holding_items
-        %Q(
-          SELECT item_barcode.item_id
-          FROM bib_mfhd
-            JOIN mfhd_master
-              ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id
             JOIN mfhd_history
               ON mfhd_master.mfhd_id = mfhd_history.mfhd_id
             JOIN mfhd_item
-              ON mfhd_history.mfhd_id = mfhd_item.mfhd_id
-            JOIN item
-              ON mfhd_item.item_id = item.item_id
-            JOIN item_barcode
-              ON item.item_id = item_barcode.item_id
-          WHERE
-            mfhd_master.location_id IN (#{recap_locations.join(",")})
-            AND item.perm_location = mfhd_master.location_id
-            AND item_barcode.barcode_status = 1
-            AND (
-              (mfhd_history.action_date > TO_TIMESTAMP_TZ(:last_diff_date, 'YYYY-MM-DD HH24:MI:SS.FF TZHTZM') AND mfhd_history.action_type_id != 1)
-            )
-        )
-      end
-
-      def recap_update_item_items
-        %Q(
-          SELECT item_barcode.item_id
-          FROM bib_mfhd
-            JOIN mfhd_master
-              ON bib_mfhd.mfhd_id = mfhd_master.mfhd_id
-            JOIN mfhd_item
               ON mfhd_master.mfhd_id = mfhd_item.mfhd_id
             JOIN item
               ON mfhd_item.item_id = item.item_id
-            JOIN item_barcode
-              ON item.item_id = item_barcode.item_id
           WHERE
             mfhd_master.location_id IN (#{recap_locations.join(",")})
             AND item.perm_location = mfhd_master.location_id
-            AND item_barcode.barcode_status = 1
             AND (
-              (item.modify_date > TO_TIMESTAMP_TZ(:last_diff_date, 'YYYY-MM-DD HH24:MI:SS.FF TZHTZM'))
+              (bib_history.action_date > TO_TIMESTAMP_TZ(:last_diff_date, 'YYYY-MM-DD HH24:MI:SS.FF TZHTZM') AND bib_history.action_type_id != 1)
+              OR (item.modify_date > TO_TIMESTAMP_TZ(:last_diff_date, 'YYYY-MM-DD HH24:MI:SS.FF TZHTZM'))
+              OR (mfhd_history.action_date > TO_TIMESTAMP_TZ(:last_diff_date, 'YYYY-MM-DD HH24:MI:SS.FF TZHTZM') AND mfhd_history.action_type_id != 1)
             )
+          GROUP BY item.item_id
         )
       end
 
@@ -174,6 +172,19 @@ module VoyagerHelpers
          )
       end
 
+      def barcodes_for_items(item_ids)
+        item_ids = OCI8.in_cond(:item_ids, item_ids)
+        %(
+          SELECT
+            item_barcode.item_id,
+            item_barcode.item_barcode
+          FROM item_barcode
+          WHERE
+            item_barcode.barcode_status = 1
+            AND item_barcode.item_id IN (#{item_ids.names})
+        )
+      end
+
       def barcode_from_item
         %Q(
           SELECT item_barcode.item_barcode
@@ -197,6 +208,59 @@ module VoyagerHelpers
         suppress_in_opac
         FROM location
         ORDER BY location_id
+        )
+      end
+
+      def items_for_item_ids(item_ids)
+        item_ids = OCI8.in_cond(:item_ids, item_ids)
+        %(
+          WITH item_info AS(
+            SELECT
+              item.item_id,
+              item.on_reserve,
+              item.copy_number,
+              item.item_sequence_number,
+              temp_loc.location_code temp_loc,
+              perm_loc.location_code perm_loc,
+              mfhd_item.item_enum,
+              mfhd_item.chron,
+              item_barcode.item_barcode
+            FROM item
+              JOIN location perm_loc
+                ON perm_loc.location_id = item.perm_location
+              LEFT JOIN location temp_loc
+                ON temp_loc.location_id = item.temp_location
+              JOIN mfhd_item
+                ON mfhd_item.item_id = item.item_id
+              LEFT JOIN item_barcode
+                ON item_barcode.item_id = item.item_id
+            WHERE item.item_id IN (#{item_ids.names}) AND
+              (item_barcode.barcode_status = 1 OR
+                item_barcode.barcode_status IS NULL)), circ_info AS(
+            SELECT
+              item_info.item_id,
+              circ_transactions.current_due_date,
+              patron_group.patron_group_code
+            FROM item_info
+              JOIN circ_transactions
+                ON item_info.item_id = circ_transactions.item_id
+              JOIN patron_group
+                ON circ_transactions.patron_group_id = patron_group.patron_group_id)
+          SELECT
+            item_info.item_id,
+            item_info.on_reserve,
+            item_info.copy_number,
+            item_info.item_sequence_number,
+            item_info.temp_loc,
+            circ_info.current_due_date,
+            circ_info.patron_group_code,
+            item_info.perm_loc,
+            item_info.item_enum,
+            item_info.chron,
+            item_info.item_barcode
+          FROM item_info
+            LEFT JOIN circ_info
+              ON item_info.item_id = circ_info.item_id
         )
       end
 
@@ -565,6 +629,16 @@ module VoyagerHelpers
         )
       end
 
+      def bulk_mfhd(mfhd_ids)
+        mfhd_ids = OCI8::in_cond(:mfhd_ids, mfhd_ids)
+        %(
+          SELECT record_segment
+          FROM mfhd_data
+          WHERE mfhd_id IN (#{mfhd_ids.names})
+          ORDER BY mfhd_id, seqnum
+        )
+      end
+
       def mfhds_for_bibs(bib_ids)
         bib_ids = OCI8::in_cond(:bib_ids, bib_ids)
         %Q(
@@ -623,15 +697,18 @@ module VoyagerHelpers
         )
       end
 
-      def item_statuses
-        %Q(
-        SELECT item_status_type.item_status_desc
-        FROM item_status_type
-          JOIN item_status
-            ON item_status_type.item_status_type = item_status.item_status
-        WHERE
-          item_status.item_id = :item_id
-          AND item_status_type.item_status_type NOT IN ('5', '16', '19', '20', '21', '23', '24')
+      def item_statuses(item_ids)
+        item_ids = OCI8.in_cond(:item_ids, item_ids)
+        %(
+          SELECT
+            item_status.item_id,
+            item_status_type.item_status_desc
+          FROM item_status_type
+            JOIN item_status
+              ON item_status_type.item_status_type = item_status.item_status
+          WHERE
+            item_status.item_id IN (#{item_ids.names})
+            AND item_status_type.item_status_type NOT IN ('5', '16', '19', '20', '21', '23', '24')
         )
       end
 
