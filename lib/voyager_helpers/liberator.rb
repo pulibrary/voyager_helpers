@@ -534,6 +534,18 @@ module VoyagerHelpers
         records
       end
 
+      def duplicate_record(record)
+        raw_marc = ''
+        writer = MARC::Writer.new(StringIO.new(raw_marc, 'w'))
+        writer.write(record)
+        writer.close
+        reader = MARC::Reader.new(StringIO.new(raw_marc, 'r'),
+                                  external_encoding: 'UTF-8',
+                                  invalid: :replace,
+                                  replace: '')
+        reader.first
+      end
+
       def get_records_from_barcodes(barcodes, recap = false, conn = nil)
         records = []
         connection(conn) do |c|
@@ -553,7 +565,15 @@ module VoyagerHelpers
               mfhd = all_mfhds[ids[:mfhd_id]]
               item = all_items[ids[:item_id]]
               next if bib.nil? || mfhd.nil? || item.nil?
-              records << merge_holding_item_into_bib(bib, mfhd, item, c, recap)
+
+              new_bib = duplicate_record(bib)
+              new_mfhd = duplicate_record(mfhd)
+              new_item = item.dup
+              records << merge_holding_item_into_bib(new_bib,
+                          new_mfhd,
+                          new_item,
+                          c,
+                          recap)
             end
           end
         end
@@ -592,7 +612,7 @@ module VoyagerHelpers
             else
               VoyagerHelpers::Queries.bulk_barcode_record_ids(slice)
             end
-            conn.exec(query, *slice) do |row|
+            c.exec(query, *slice) do |row|
               bib_id = row.shift
               mfhd_id = row.shift
               item_id = row.shift
